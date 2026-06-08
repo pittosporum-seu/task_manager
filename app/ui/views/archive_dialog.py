@@ -86,7 +86,7 @@ class ArchiveDialog(QDialog):
         for index in range(self.list_widget.count()):
             item = self.list_widget.item(index)
             widget = self.list_widget.itemWidget(item)
-            if widget:
+            if widget is not None:
                 height = widget.update_preferred_height(current_width)
                 item.setSizeHint(QSize(current_width, height))
 
@@ -95,4 +95,3 @@ class ArchiveDialog(QDialog):
         if not is_checked:
             self.load_data()
             QTimer.singleShot(0, self.adjust_layout)
-
