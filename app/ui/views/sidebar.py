@@ -107,7 +107,20 @@ class SidebarView(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.refresh()
+        self.adjust_layout()
+
+    def card_width(self) -> int:
+        current_width = self.inbox_list.viewport().width() - 20
+        return current_width if current_width > 0 else 230
+
+    def adjust_layout(self) -> None:
+        current_width = self.card_width()
+        for index in range(self.inbox_list.count()):
+            item = self.inbox_list.item(index)
+            widget = self.inbox_list.itemWidget(item)
+            if widget is not None:
+                height = widget.update_preferred_height(current_width)
+                item.setSizeHint(QSize(current_width, height))
 
     def handle_double_click(self, item) -> None:
         task_id = item.data(Qt.ItemDataRole.UserRole)
@@ -117,7 +130,7 @@ class SidebarView(QWidget):
 
     def show_context_menu(self, pos: QPoint) -> None:
         item = self.inbox_list.itemAt(pos)
-        if not item:
+        if item is None:
             return
 
         menu = QMenu(self)
@@ -155,4 +168,3 @@ class SidebarView(QWidget):
         dialog = ArchiveDialog(self.service, self)
         dialog.exec()
         self.service.data_changed.emit()
-
