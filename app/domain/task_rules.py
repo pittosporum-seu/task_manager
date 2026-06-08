@@ -1,54 +1,17 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import Callable, Iterable, List, Optional
+from typing import Iterable, List, Optional
 
 from app.models.task import Task
 
 
-QUADRANT_META = (
-    {
-        "id": "q1",
-        "title_key": "q1_title",
-        "row": 0,
-        "col": 0,
-        "bg": "#FEF2F2",
-        "text": "#7F1D1D",
-    },
-    {
-        "id": "q2",
-        "title_key": "q2_title",
-        "row": 0,
-        "col": 1,
-        "bg": "#EFF6FF",
-        "text": "#1E3A8A",
-    },
-    {
-        "id": "q3",
-        "title_key": "q3_title",
-        "row": 1,
-        "col": 0,
-        "bg": "#ECFDF5",
-        "text": "#065F46",
-    },
-    {
-        "id": "q4",
-        "title_key": "q4_title",
-        "row": 1,
-        "col": 1,
-        "bg": "#F3F4F6",
-        "text": "#4B5563",
-    },
+QUADRANT_DEFINITIONS = (
+    {"id": "q1", "title_key": "q1_title"},
+    {"id": "q2", "title_key": "q2_title"},
+    {"id": "q3", "title_key": "q3_title"},
+    {"id": "q4", "title_key": "q4_title"},
 )
-
-
-def build_quadrant_configs(title_resolver: Callable[[str], str]) -> list[dict]:
-    configs = []
-    for quadrant in QUADRANT_META:
-        item = dict(quadrant)
-        item["title"] = title_resolver(item.pop("title_key"))
-        configs.append(item)
-    return configs
 
 
 def today_key(now: Optional[datetime | date] = None) -> str:
@@ -112,8 +75,11 @@ def visible_matrix_tasks(tasks: Iterable[Task], *, today: Optional[str] = None) 
     return sorted(visible, key=task_sort_key)
 
 
-def archived_tasks(tasks: Iterable[Task]) -> List[Task]:
-    completed = [task for task in tasks if task.completed]
+def archived_tasks(tasks: Iterable[Task], *, today: Optional[str] = None) -> List[Task]:
+    archive_day = today or today_key()
+    completed = [
+        task for task in tasks if task.completed and not is_completed_today(task, archive_day)
+    ]
     return sorted(completed, key=lambda task: task.completed_at or "", reverse=True)
 
 

@@ -5,9 +5,7 @@ from app.ui.views.sidebar import SidebarView
 
 
 def make_service(tmp_path):
-    service = TaskService(filename=str(tmp_path / "ui_tasks.json"))
-    service.timer.stop()
-    return service
+    return TaskService(filename=str(tmp_path / "ui_tasks.json"), enable_timer=False)
 
 
 def test_ui_smoke_workflow(tmp_path, qapp):
@@ -31,6 +29,13 @@ def test_ui_smoke_workflow(tmp_path, qapp):
 
     service.toggle_complete(task.id, True)
     archive = ArchiveDialog(service)
+    archive.load_data()
+    archive.adjust_layout()
+    assert archive.list_widget.count() == 0
+
+    historical_task = service.add_task("Historical done", quadrant="q2")
+    service.toggle_complete(historical_task.id, True)
+    service.tasks[historical_task.id].completed_at = "2026-06-07T10:00:00"
     archive.load_data()
     archive.adjust_layout()
     assert archive.list_widget.count() == 1

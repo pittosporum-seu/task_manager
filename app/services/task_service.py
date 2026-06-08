@@ -20,16 +20,18 @@ class TaskService(QObject):
     data_changed = pyqtSignal()
     reminder_triggered = pyqtSignal(str, str)
 
-    def __init__(self, filename: Optional[str] = None):
+    def __init__(self, filename: Optional[str] = None, enable_timer: bool = True):
         super().__init__()
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         self.filepath = Path(filename) if filename else DATA_DIR / "tasks.json"
         self.tasks: Dict[str, Task] = {}
         self.load_data()
 
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.check_reminders)
-        self.timer.start(30_000)
+        self.timer = None
+        if enable_timer:
+            self.timer = QTimer(self)
+            self.timer.timeout.connect(self.check_reminders)
+            self.timer.start(30_000)
 
     def load_data(self) -> None:
         if not self.filepath.exists():
@@ -37,11 +39,13 @@ class TaskService(QObject):
         try:
             with self.filepath.open("r", encoding="utf-8") as handle:
                 raw = json.load(handle)
-            self.tasks = {
-                task_id: Task.from_dict(payload)
-                for task_id, payload in raw.items()
-                if isinstance(payload, dict)
-            }
+            tasks = {}
+            for task_id, payload in raw.items():
+                if not isinstance(payload, dict):
+                    continue
+                task = Task.from_dict(payload, fallback_id=task_id)
+                tasks[task.id] = task
+            self.tasks = tasks
         except (OSError, json.JSONDecodeError, TypeError) as exc:
             print(f"Error loading tasks: {exc}")
 

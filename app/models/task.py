@@ -41,9 +41,9 @@ class Task:
         )
 
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]) -> "Task":
+    def from_dict(cls, payload: Dict[str, Any], fallback_id: Optional[str] = None) -> "Task":
         defaults = {
-            "id": str(uuid.uuid4()),
+            "id": fallback_id or str(uuid.uuid4()),
             "title": "Untitled",
             "quadrant": "inbox",
             "created_at": datetime.now().isoformat(timespec="seconds"),

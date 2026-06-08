@@ -1,8 +1,8 @@
 from datetime import datetime
 
 from app.domain.task_rules import (
+    QUADRANT_DEFINITIONS,
     archived_tasks,
-    build_quadrant_configs,
     should_trigger_reminder,
     visible_inbox_tasks,
     visible_matrix_tasks,
@@ -63,16 +63,17 @@ def test_visible_matrix_tasks_excludes_inbox_and_old_completed():
     assert [task.id for task in result] == ["q1_open", "q2_open", "q4_today_done"]
 
 
-def test_archived_tasks_are_completed_and_newest_first():
+def test_archived_tasks_are_historical_completed_and_newest_first():
     tasks = [
         make_task("open"),
         make_task("done_old", completed=True, completed_at="2026-06-07T10:00:00"),
-        make_task("done_new", completed=True, completed_at="2026-06-08T10:00:00"),
+        make_task("done_new", completed=True, completed_at="2026-06-06T10:00:00"),
+        make_task("done_today", completed=True, completed_at="2026-06-08T10:00:00"),
     ]
 
-    result = archived_tasks(tasks)
+    result = archived_tasks(tasks, today="2026-06-08")
 
-    assert [task.id for task in result] == ["done_new", "done_old"]
+    assert [task.id for task in result] == ["done_old", "done_new"]
 
 
 def test_should_trigger_reminder():
@@ -89,9 +90,7 @@ def test_should_trigger_reminder():
     assert not should_trigger_reminder(task, now=datetime(2026, 6, 8, 9, 31))
 
 
-def test_quadrant_configs_resolve_titles():
-    configs = build_quadrant_configs(lambda key: f"title:{key}")
-
-    assert configs[0]["id"] == "q1"
-    assert configs[0]["title"] == "title:q1_title"
-    assert "title_key" not in configs[0]
+def test_quadrant_definitions_are_domain_only():
+    assert QUADRANT_DEFINITIONS[0] == {"id": "q1", "title_key": "q1_title"}
+    assert "row" not in QUADRANT_DEFINITIONS[0]
+    assert "bg" not in QUADRANT_DEFINITIONS[0]
