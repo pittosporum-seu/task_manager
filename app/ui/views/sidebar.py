@@ -1,9 +1,14 @@
-from datetime import datetime
-from typing import List
-
 from PyQt6.QtCore import QPoint, QSize, Qt
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QFrame, QLabel, QListWidgetItem, QMenu, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QFrame,
+    QLabel,
+    QListWidgetItem,
+    QMenu,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from app.config import (
     STYLE_BTN_ARCHIVE,
@@ -76,7 +81,7 @@ class SidebarView(QWidget):
         if current_width <= 0:
             current_width = 230
 
-        for task in self.visible_tasks():
+        for task in self.service.get_visible_inbox_tasks():
             item = QListWidgetItem(self.inbox_list)
             item.setData(Qt.ItemDataRole.UserRole, task.id)
 
@@ -84,26 +89,6 @@ class SidebarView(QWidget):
             height = widget.update_preferred_height(current_width)
             item.setSizeHint(QSize(current_width, height))
             self.inbox_list.setItemWidget(item, widget)
-
-    def visible_tasks(self) -> List:
-        today = datetime.now().strftime("%Y-%m-%d")
-        tasks = []
-        for task in self.service.tasks.values():
-            if task.quadrant != "inbox":
-                continue
-            if not task.completed:
-                tasks.append(task)
-            elif task.completed_at and task.completed_at.startswith(today):
-                tasks.append(task)
-
-        tasks.sort(
-            key=lambda task: (
-                task.completed,
-                task.due_date is None or task.due_date == "",
-                task.due_date or "",
-            )
-        )
-        return tasks
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

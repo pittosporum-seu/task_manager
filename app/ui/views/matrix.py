@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Dict, List
+from typing import Dict
 
 from PyQt6.QtCore import QPoint, QSize, Qt
 from PyQt6.QtGui import QAction
@@ -51,7 +50,7 @@ class MatrixView(QWidget):
         for list_widget in self.lists.values():
             list_widget.clear()
 
-        for task in self.visible_tasks():
+        for task in self.service.get_visible_matrix_tasks():
             list_widget = self.lists.get(task.quadrant)
             if list_widget is None:
                 continue
@@ -64,26 +63,6 @@ class MatrixView(QWidget):
             height = widget.update_preferred_height(current_width)
             item.setSizeHint(QSize(current_width, height))
             list_widget.setItemWidget(item, widget)
-
-    def visible_tasks(self) -> List:
-        today = datetime.now().strftime("%Y-%m-%d")
-        tasks = []
-        for task in self.service.tasks.values():
-            if task.quadrant == "inbox":
-                continue
-            if not task.completed:
-                tasks.append(task)
-            elif task.completed_at and task.completed_at.startswith(today):
-                tasks.append(task)
-
-        tasks.sort(
-            key=lambda task: (
-                task.completed,
-                task.due_date is None or task.due_date == "",
-                task.due_date or "",
-            )
-        )
-        return tasks
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

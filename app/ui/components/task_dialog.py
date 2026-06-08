@@ -179,8 +179,6 @@ class TaskDialog(QDialog):
             "description": self.desc_edit.toPlainText().strip(),
             "due_date": due_date,
             "has_time": has_time,
-            "reminder_minutes": self.reminder_combo.currentData()
-            if due_date
-            else None,
+            "reminder_minutes": self.reminder_combo.currentData() if due_date else None,
         }
         self.accept()

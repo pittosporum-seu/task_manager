@@ -25,11 +25,23 @@ python main.py
 
 任务数据会保存在 `data/tasks.json`，该文件已被 `.gitignore` 忽略。
 
+## 测试
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .
+pytest
+```
+
+UI smoke test 使用 Qt offscreen 模式，不会打开真实窗口。
+
 ## 结构
 
 ```text
 app/
   config.py
+  domain/
+    task_rules.py
   models/
     task.py
   resources/

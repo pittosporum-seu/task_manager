@@ -59,4 +59,3 @@ class Task:
         fields = cls.__dataclass_fields__.keys()
         data = {**defaults, **{k: v for k, v in payload.items() if k in fields}}
         return cls(**data)
-

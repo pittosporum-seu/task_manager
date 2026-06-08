@@ -53,8 +53,7 @@ class ArchiveDialog(QDialog):
 
     def load_data(self) -> None:
         self.list_widget.clear()
-        archived_tasks = [task for task in self.service.tasks.values() if task.completed]
-        archived_tasks.sort(key=lambda task: task.completed_at or "", reverse=True)
+        archived_tasks = self.service.get_archived_tasks()
         self.empty_label.setVisible(not archived_tasks)
 
         current_width = self.list_widget.viewport().width()

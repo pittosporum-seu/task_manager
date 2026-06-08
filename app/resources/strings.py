@@ -157,4 +157,3 @@ class Strings:
         item = cls._DATA.get(key, {})
         text = item.get(cls.current_lang, item.get("en", key))
         return text.format(**kwargs) if kwargs else text
-

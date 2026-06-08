@@ -112,9 +112,7 @@ class TaskCardWidget(QWidget):
 
         self.lbl_title = QLabel(task.title)
         self.lbl_title.setWordWrap(True)
-        self.lbl_title.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
-        )
+        self.lbl_title.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.lbl_title.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         top_layout.addWidget(self.lbl_title, 1)
@@ -148,7 +146,9 @@ class TaskCardWidget(QWidget):
         except ValueError:
             return Strings.get("card_due_prefix")
 
-        value = due_at.strftime("%m-%d %H:%M") if self.task.has_time else due_at.strftime("%Y-%m-%d")
+        value = (
+            due_at.strftime("%m-%d %H:%M") if self.task.has_time else due_at.strftime("%Y-%m-%d")
+        )
         return f"{Strings.get('card_due_prefix')} {value}"
 
     def _date_style(self) -> str:
@@ -209,4 +209,3 @@ class TaskCardWidget(QWidget):
         if self.popup:
             self.popup.move(QCursor.pos() + QPoint(15, 15))
         super().mouseMoveEvent(event)
-

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from app.domain.task_rules import build_quadrant_configs
 from app.resources.strings import Strings
 
 
@@ -36,40 +37,7 @@ COLORS = {
     "blue_soft": "#EFF6FF",
 }
 
-QUADRANT_CONFIGS = [
-    {
-        "id": "q1",
-        "title": Strings.get("q1_title"),
-        "row": 0,
-        "col": 0,
-        "bg": "#FEF2F2",
-        "text": "#7F1D1D",
-    },
-    {
-        "id": "q2",
-        "title": Strings.get("q2_title"),
-        "row": 0,
-        "col": 1,
-        "bg": "#EFF6FF",
-        "text": "#1E3A8A",
-    },
-    {
-        "id": "q3",
-        "title": Strings.get("q3_title"),
-        "row": 1,
-        "col": 0,
-        "bg": "#ECFDF5",
-        "text": "#065F46",
-    },
-    {
-        "id": "q4",
-        "title": Strings.get("q4_title"),
-        "row": 1,
-        "col": 1,
-        "bg": "#F3F4F6",
-        "text": "#4B5563",
-    },
-]
+QUADRANT_CONFIGS = build_quadrant_configs(Strings.get)
 
 GLOBAL_STYLES = f"""
     QMainWindow {{

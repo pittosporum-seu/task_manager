@@ -1,12 +1,18 @@
 import json
 from dataclasses import asdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from app.config import DATA_DIR
+from app.domain.task_rules import (
+    archived_tasks,
+    should_trigger_reminder,
+    visible_inbox_tasks,
+    visible_matrix_tasks,
+)
 from app.models.task import Task
 
 
@@ -114,37 +120,29 @@ class TaskService(QObject):
         if not task:
             return
         task.completed = completed
-        task.completed_at = (
-            datetime.now().isoformat(timespec="seconds") if completed else None
-        )
+        task.completed_at = datetime.now().isoformat(timespec="seconds") if completed else None
         if completed:
             task.reminder_sent = True
         self.save_data()
+
+    def get_visible_inbox_tasks(self) -> list[Task]:
+        return visible_inbox_tasks(self.tasks.values())
+
+    def get_visible_matrix_tasks(self) -> list[Task]:
+        return visible_matrix_tasks(self.tasks.values())
+
+    def get_archived_tasks(self) -> list[Task]:
+        return archived_tasks(self.tasks.values())
 
     def check_reminders(self) -> None:
         now = datetime.now()
         changed = False
 
         for task in self.tasks.values():
-            if (
-                not task.due_date
-                or task.reminder_minutes is None
-                or task.reminder_sent
-                or task.completed
-            ):
-                continue
-
-            try:
-                due_at = datetime.fromisoformat(task.due_date)
-            except ValueError:
-                continue
-
-            trigger_at = due_at - timedelta(minutes=task.reminder_minutes)
-            if now >= trigger_at:
+            if should_trigger_reminder(task, now=now):
                 task.reminder_sent = True
                 changed = True
                 self.reminder_triggered.emit(task.title, task.id)
 
         if changed:
             self.save_data()
-
