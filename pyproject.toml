@@ -1,0 +1,13 @@
+[project]
+name = "quadrant-task-manager"
+version = "0.1.0"
+description = "A PyQt6 four-quadrant task manager with sorting, drag-and-drop, reminders, archive, and i18n."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "PyQt6>=6.6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
