@@ -27,7 +27,7 @@ class DraggableListWidget(QListWidget):
 
     def mousePressEvent(self, event):
         item = self.itemAt(event.position().toPoint())
-        self._drag_task_id = item.data(Qt.ItemDataRole.UserRole) if item else None
+        self._drag_task_id = item.data(Qt.ItemDataRole.UserRole) if item is not None else None
         self._drag_start_pos = event.position().toPoint()
         super().mousePressEvent(event)
 
@@ -68,4 +68,3 @@ class DraggableListWidget(QListWidget):
         task_id = bytes(event.mimeData().data(self.MIME_TYPE)).decode("utf-8")
         self.service.move_task(task_id, self.quadrant_id)
         event.acceptProposedAction()
-
