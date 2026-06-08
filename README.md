@@ -37,6 +37,15 @@ pytest
 
 UI smoke test 使用 Qt offscreen 模式，不会打开真实窗口。
 
+## 打包
+
+```powershell
+pip install -r requirements-build.txt
+.\scripts\build_exe.ps1
+```
+
+产物会输出到 `outputs/TaskManager-v0.1.0-win64.zip`。
+
 ## 结构
 
 ```text

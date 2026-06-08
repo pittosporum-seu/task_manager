@@ -1,17 +1,21 @@
+import sys
 from pathlib import Path
 
 from app.domain.task_rules import QUADRANT_DEFINITIONS
 from app.resources.strings import Strings
 
 
+IS_FROZEN = getattr(sys, "frozen", False)
 BASE_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = BASE_DIR / "data"
+APP_ROOT = Path(sys.executable).resolve().parent if IS_FROZEN else BASE_DIR
+RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", BASE_DIR))
+DATA_DIR = APP_ROOT / "data"
 LANGUAGE = "cn"
 Strings.current_lang = LANGUAGE
 
 
 def resource_path(*parts: str) -> str:
-    return (BASE_DIR / "app" / "resources" / "imgs" / Path(*parts)).as_posix()
+    return (RESOURCE_ROOT / "app" / "resources" / "imgs" / Path(*parts)).as_posix()
 
 
 APP_LOGO_PATH = resource_path("app_logo.svg")
