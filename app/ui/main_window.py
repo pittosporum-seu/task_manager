@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
         self.matrix.refresh()
 
     def show_notification(self, title: str, task_id: str) -> None:
-        if not self.tray_icon:
+        if self.tray_icon is None:
             return
         self.tray_icon.showMessage(
             Strings.get("notification_title"),
@@ -61,7 +61,6 @@ class MainWindow(QMainWindow):
         )
 
     def closeEvent(self, event):
-        if self.tray_icon:
+        if self.tray_icon is not None:
             self.tray_icon.hide()
         super().closeEvent(event)
-

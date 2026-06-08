@@ -53,17 +53,14 @@ class MatrixView(QWidget):
 
         for task in self.visible_tasks():
             list_widget = self.lists.get(task.quadrant)
-            if not list_widget:
+            if list_widget is None:
                 continue
-
-            current_width = list_widget.viewport().width() - 20
-            if current_width <= 0:
-                current_width = 200
 
             item = QListWidgetItem(list_widget)
             item.setData(Qt.ItemDataRole.UserRole, task.id)
 
             widget = TaskCardWidget(task, on_status_change=self.service.toggle_complete)
+            current_width = self.card_width(list_widget, fallback=200)
             height = widget.update_preferred_height(current_width)
             item.setSizeHint(QSize(current_width, height))
             list_widget.setItemWidget(item, widget)
@@ -90,7 +87,21 @@ class MatrixView(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.refresh()
+        self.adjust_layout()
+
+    def card_width(self, list_widget: DraggableListWidget, fallback: int) -> int:
+        current_width = list_widget.viewport().width() - 20
+        return current_width if current_width > 0 else fallback
+
+    def adjust_layout(self) -> None:
+        for list_widget in self.lists.values():
+            current_width = self.card_width(list_widget, fallback=200)
+            for index in range(list_widget.count()):
+                item = list_widget.item(index)
+                widget = list_widget.itemWidget(item)
+                if widget is not None:
+                    height = widget.update_preferred_height(current_width)
+                    item.setSizeHint(QSize(current_width, height))
 
     def handle_double_click(self, item) -> None:
         task_id = item.data(Qt.ItemDataRole.UserRole)
@@ -100,7 +111,7 @@ class MatrixView(QWidget):
 
     def show_context_menu(self, pos: QPoint, list_widget: DraggableListWidget) -> None:
         item = list_widget.itemAt(pos)
-        if not item:
+        if item is None:
             return
 
         menu = QMenu(self)
@@ -124,4 +135,3 @@ class MatrixView(QWidget):
                 data["has_time"],
                 data["reminder_minutes"],
             )
-
