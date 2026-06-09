@@ -15,27 +15,27 @@ def test_task_service_crud_and_persistence(tmp_path, qapp):
     assert service.timer is None
 
     task = service.add_task("Title", "Desc", "2026-06-09T09:30", True, 5)
-    assert task.id in service.tasks
+    assert service.get_task(task.id) is not None
     assert changed
 
     service.update_task(task.id, "New title", "New desc", None, False, None)
-    assert service.tasks[task.id].title == "New title"
-    assert service.tasks[task.id].due_date is None
+    assert service.get_task(task.id).title == "New title"
+    assert service.get_task(task.id).due_date is None
 
     service.move_task(task.id, "q1")
-    assert service.tasks[task.id].quadrant == "q1"
+    assert service.get_task(task.id).quadrant == "q1"
 
     service.toggle_complete(task.id, True)
-    assert service.tasks[task.id].completed
-    assert service.tasks[task.id].completed_at is not None
+    assert service.get_task(task.id).completed
+    assert service.get_task(task.id).completed_at is not None
 
     reloaded = make_service(tmp_path)
-    assert reloaded.tasks[task.id].title == "New title"
-    assert reloaded.tasks[task.id].quadrant == "q1"
-    assert reloaded.tasks[task.id].completed
+    assert reloaded.get_task(task.id).title == "New title"
+    assert reloaded.get_task(task.id).quadrant == "q1"
+    assert reloaded.get_task(task.id).completed
 
     reloaded.delete_task(task.id)
-    assert task.id not in reloaded.tasks
+    assert reloaded.get_task(task.id) is None
 
 
 def test_task_service_queries_use_domain_rules(tmp_path, qapp):
@@ -44,8 +44,7 @@ def test_task_service_queries_use_domain_rules(tmp_path, qapp):
     matrix_task = service.add_task("Matrix", quadrant="q1", due_date="2026-06-09T09:30")
     service.toggle_complete(matrix_task.id, True)
     historical_task = service.add_task("Historical", quadrant="q2")
-    service.toggle_complete(historical_task.id, True)
-    service.tasks[historical_task.id].completed_at = "2026-06-07T10:00:00"
+    service.toggle_complete(historical_task.id, True, completed_at="2026-06-07T10:00:00")
 
     assert [task.id for task in service.get_visible_inbox_tasks()] == [inbox_task.id]
     assert [task.id for task in service.get_visible_matrix_tasks()] == [matrix_task.id]
@@ -63,7 +62,7 @@ def test_task_service_reminder_signal(tmp_path, qapp):
     service.check_reminders()
 
     assert reminders == [("Reminder", task.id)]
-    assert service.tasks[task.id].reminder_sent
+    assert service.get_task(task.id).reminder_sent
 
 
 def test_task_service_loads_legacy_payload_without_id(tmp_path, qapp):
@@ -83,6 +82,5 @@ def test_task_service_loads_legacy_payload_without_id(tmp_path, qapp):
 
     service = make_service(tmp_path)
 
-    assert "legacy-id" in service.tasks
-    assert service.tasks["legacy-id"].id == "legacy-id"
-    assert service.tasks["legacy-id"].title == "Legacy task"
+    assert service.get_task("legacy-id").id == "legacy-id"
+    assert service.get_task("legacy-id").title == "Legacy task"

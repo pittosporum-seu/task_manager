@@ -34,8 +34,7 @@ def test_ui_smoke_workflow(tmp_path, qapp):
     assert archive.list_widget.count() == 0
 
     historical_task = service.add_task("Historical done", quadrant="q2")
-    service.toggle_complete(historical_task.id, True)
-    service.tasks[historical_task.id].completed_at = "2026-06-07T10:00:00"
+    service.toggle_complete(historical_task.id, True, completed_at="2026-06-07T10:00:00")
     archive.load_data()
     archive.adjust_layout()
     assert archive.list_widget.count() == 1

@@ -84,7 +84,7 @@ class MatrixView(QWidget):
 
     def handle_double_click(self, item) -> None:
         task_id = item.data(Qt.ItemDataRole.UserRole)
-        task = self.service.tasks.get(task_id)
+        task = self.service.get_task(task_id)
         if task:
             self.open_task_dialog(task)
 
