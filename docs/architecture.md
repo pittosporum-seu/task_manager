@@ -87,3 +87,17 @@ UI / Future CLI / Future AI
 - AI 后续只能通过 command、CLI 或 MCP 调用任务能力。
 - AI 不允许直接写 `data/tasks.json`。
 - 当前版本不实现 MCP server，不引入模型 SDK，不发起网络请求。
+
+## CLI
+
+当前已有轻量 CLI 入口：
+
+```bash
+python -m app.cli --file data/tasks.json list --view inbox
+python -m app.cli --file data/tasks.json add "写周报" --quadrant q1
+python -m app.cli --file data/tasks.json complete <task-id>
+```
+
+CLI 只做参数解析和 JSON 输出，写操作仍然会构造 command 并调用
+`TaskApplication.dispatch()`。这层可以作为未来 AI/Skill/MCP 的稳定外壳，但当前不包含任何
+AI 调用逻辑。

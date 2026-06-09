@@ -2,7 +2,9 @@ from datetime import datetime
 
 from app.domain.task_rules import (
     QUADRANT_DEFINITIONS,
+    VALID_QUADRANTS,
     archived_tasks,
+    is_valid_quadrant,
     should_trigger_reminder,
     visible_inbox_tasks,
     visible_matrix_tasks,
@@ -94,3 +96,6 @@ def test_quadrant_definitions_are_domain_only():
     assert QUADRANT_DEFINITIONS[0] == {"id": "q1", "title_key": "q1_title"}
     assert "row" not in QUADRANT_DEFINITIONS[0]
     assert "bg" not in QUADRANT_DEFINITIONS[0]
+    assert VALID_QUADRANTS == ("inbox", "q1", "q2", "q3", "q4")
+    assert is_valid_quadrant("q1")
+    assert not is_valid_quadrant("bad")

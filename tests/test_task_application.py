@@ -116,3 +116,17 @@ def test_task_application_check_reminders_triggers_events():
         isinstance(event, ReminderTriggered) and event.task_id == task.id for event in events
     )
     assert task_changed_events(events)[-1].action == "check_reminders"
+
+
+def test_task_application_validates_title_and_quadrant():
+    app, repository, events = make_application()
+
+    empty_title = app.dispatch(AddTask(title="   "))
+    invalid_quadrant = app.dispatch(AddTask(title="Task", quadrant="bad"))
+
+    assert not empty_title.ok
+    assert empty_title.message == "Task title is required"
+    assert not invalid_quadrant.ok
+    assert invalid_quadrant.message == "Invalid quadrant"
+    assert repository.save_count == 0
+    assert events == []

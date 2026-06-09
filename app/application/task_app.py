@@ -18,6 +18,7 @@ from app.application.events import ApplicationEvent, ReminderTriggered, TaskChan
 from app.application.results import CommandResult
 from app.domain.task_rules import (
     archived_tasks,
+    is_valid_quadrant,
     should_trigger_reminder,
     visible_inbox_tasks,
     visible_matrix_tasks,
@@ -77,8 +78,14 @@ class TaskApplication:
         return archived_tasks(self.tasks.values())
 
     def _add_task(self, command: AddTask) -> CommandResult:
+        title = command.title.strip()
+        if not title:
+            return CommandResult(ok=False, message="Task title is required")
+        if not is_valid_quadrant(command.quadrant):
+            return CommandResult(ok=False, message="Invalid quadrant")
+
         task = Task.create(
-            title=command.title,
+            title=title,
             description=command.description,
             due_date=command.due_date,
             has_time=command.has_time,
@@ -93,13 +100,17 @@ class TaskApplication:
         if not task:
             return CommandResult(ok=False, message="Task not found", task_id=command.task_id)
 
+        title = command.title.strip()
+        if not title:
+            return CommandResult(ok=False, message="Task title is required", task_id=task.id)
+
         reminder_changed = (
             task.due_date != command.due_date
             or task.reminder_minutes != command.reminder_minutes
             or task.has_time != command.has_time
         )
 
-        task.title = command.title
+        task.title = title
         task.description = command.description
         task.due_date = command.due_date
         task.has_time = command.has_time
@@ -120,6 +131,8 @@ class TaskApplication:
         task = self.tasks.get(command.task_id)
         if not task:
             return CommandResult(ok=False, message="Task not found", task_id=command.task_id)
+        if not is_valid_quadrant(command.new_quadrant):
+            return CommandResult(ok=False, message="Invalid quadrant", task_id=task.id)
         if task.quadrant == command.new_quadrant:
             return CommandResult(ok=True, message="Task already in quadrant", task_id=task.id)
 

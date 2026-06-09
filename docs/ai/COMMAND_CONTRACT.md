@@ -126,3 +126,38 @@
 ## AI 调用限制
 
 AI 后续只能通过 command、CLI 或 MCP 工具调用任务能力。任何 AI、Skill 或外部自动化都不应直接编辑 `data/tasks.json`。
+
+## CLI JSON Output
+
+当前 CLI 输出与 `CommandResult` 保持同形：
+
+```bash
+python -m app.cli --file data/tasks.json add "写周报" --quadrant q1
+```
+
+示例输出：
+
+```json
+{
+  "ok": true,
+  "message": "Task added",
+  "changed": true,
+  "task_id": "task-id",
+  "data": {
+    "task": {}
+  },
+  "events": [
+    {
+      "action": "add",
+      "task_id": "task-id",
+      "type": "TaskChanged"
+    }
+  ]
+}
+```
+
+只读查询也使用同一 envelope，`changed` 为 `false`：
+
+```bash
+python -m app.cli --file data/tasks.json list --view archive
+```

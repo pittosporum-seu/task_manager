@@ -26,6 +26,15 @@ Natural language
 -> CommandResult
 ```
 
+当前已经存在轻量 CLI：
+
+```bash
+python -m app.cli --file data/tasks.json list --view inbox
+python -m app.cli --file data/tasks.json add "写周报" --quadrant q1
+```
+
+Skill 后续应优先调用 CLI 或 MCP，不要直接编辑 JSON 文件。
+
 ## 当前可用的 command 概念
 
 - `AddTask`
@@ -38,4 +47,4 @@ Natural language
 
 ## 注意
 
-当前仓库还没有实现 CLI 或 MCP server。本文件只用于保留未来 AI 接入边界。
+当前仓库还没有实现 MCP server。本文件只用于保留未来 AI 接入边界。

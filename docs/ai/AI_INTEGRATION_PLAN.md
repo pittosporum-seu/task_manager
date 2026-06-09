@@ -19,7 +19,7 @@ AI 不允许直接编辑 `data/tasks.json`。
 ## 推荐阶段
 
 1. CLI 包装
-   - 新增轻量 CLI，把自然语言之外的确定性操作映射成 command。
+   - 已新增轻量 CLI，把自然语言之外的确定性操作映射成 command。
    - CLI 输出 `CommandResult` 的 JSON 形式。
 2. AI Skill
    - Skill 只负责解释用户意图并调用 CLI 或 MCP。
@@ -38,9 +38,13 @@ AI 不允许直接编辑 `data/tasks.json`。
 - 不允许绕过 `TaskApplication.dispatch()` 进行写操作。
 - 不允许让 MCP server 复制一套任务业务逻辑。
 
+## 已预留接口
+
+- `CommandResult` JSON 序列化，供 CLI/未来 MCP 复用。
+- `ListTasks` query DTO，供 CLI/未来 AI 查询不同任务视图。
+- command 层已加入基础校验，例如空标题和非法象限。
+
 ## 后续可扩展点
 
-- 增加只读 query DTO，方便 CLI/AI 输出稳定 JSON。
-- 增加 command 校验层，例如标题长度、象限合法性。
 - 增加审计日志，记录 command 来源和执行结果。
 - 增加 dry-run 模式，让 AI 先给出计划再执行。
