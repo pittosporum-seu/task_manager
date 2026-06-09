@@ -66,6 +66,15 @@ def test_cli_add_update_list_and_archive_flow(tmp_path, capsys):
     exit_code, payload = run_cli(capsys, data_file, "list", "--view", "archive")
     assert exit_code == 0
     assert [task["id"] for task in payload["data"]["tasks"]] == [task_id]
+    audit_file = data_file.parent / "audit.log.jsonl"
+    audit_records = [
+        json.loads(line) for line in audit_file.read_text(encoding="utf-8").splitlines()
+    ]
+    assert [record["command"] for record in audit_records] == [
+        "AddTask",
+        "UpdateTask",
+        "CompleteTask",
+    ]
 
 
 def test_cli_check_reminders_outputs_events(tmp_path, capsys):
@@ -114,3 +123,61 @@ def test_cli_returns_failure_for_invalid_command_data(tmp_path, capsys):
     assert exit_code == 1
     assert not payload["ok"]
     assert payload["message"] == "Invalid datetime"
+
+
+def test_cli_delete_requires_confirm_or_dry_run(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    _, add_payload = run_cli(capsys, data_file, "add", "Delete candidate")
+    task_id = add_payload["task_id"]
+
+    exit_code, payload = run_cli(capsys, data_file, "delete", task_id)
+
+    assert exit_code == 1
+    assert payload["message"] == "Delete requires --confirm or --dry-run"
+
+    exit_code, payload = run_cli(capsys, data_file, "delete", task_id, "--dry-run")
+
+    assert exit_code == 0
+    assert payload["would_change"]
+    assert payload["preview"]["operation"] == "delete"
+
+    exit_code, payload = run_cli(capsys, data_file, "get", task_id)
+    assert exit_code == 0
+    assert payload["data"]["task"]["id"] == task_id
+
+    exit_code, payload = run_cli(capsys, data_file, "delete", task_id, "--confirm")
+
+    assert exit_code == 0
+    assert payload["changed"]
+
+
+def test_cli_future_ai_delete_must_be_dry_run(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    _, add_payload = run_cli(capsys, data_file, "add", "AI delete candidate")
+    task_id = add_payload["task_id"]
+
+    exit_code, payload = run_cli(
+        capsys,
+        data_file,
+        "--source",
+        "future_ai",
+        "delete",
+        task_id,
+        "--confirm",
+    )
+
+    assert exit_code == 1
+    assert payload["message"] == "future_ai delete requires dry-run"
+
+    exit_code, payload = run_cli(
+        capsys,
+        data_file,
+        "--source",
+        "future_ai",
+        "delete",
+        task_id,
+        "--dry-run",
+    )
+
+    assert exit_code == 0
+    assert payload["would_change"]

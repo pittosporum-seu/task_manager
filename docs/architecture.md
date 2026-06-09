@@ -48,12 +48,28 @@ UI / Future CLI / Future AI
 - `ReopenTask`
 - `CheckReminders`
 
+执行 command 时可以传入 `CommandContext`：
+
+```python
+CommandContext(
+    source="cli",
+    dry_run=False,
+    request_id=None,
+    actor=None,
+)
+```
+
+`source` 当前建议使用 `ui`、`cli`、`future_ai`、`test`。未来 AI 调用删除类能力时必须先使用
+`dry_run=True` 取得 preview。
+
 所有 command 都返回 `CommandResult`：
 
 - `ok`
 - `message`
 - `changed`
+- `would_change`
 - `task_id`
+- `preview`
 - `data`
 - `events`
 
@@ -95,9 +111,28 @@ UI / Future CLI / Future AI
 ```bash
 python -m app.cli --file data/tasks.json list --view inbox
 python -m app.cli --file data/tasks.json add "写周报" --quadrant q1
-python -m app.cli --file data/tasks.json complete <task-id>
+python -m app.cli --file data/tasks.json delete <task-id> --dry-run
+python -m app.cli --file data/tasks.json delete <task-id> --confirm
 ```
 
 CLI 只做参数解析和 JSON 输出，写操作仍然会构造 command 并调用
 `TaskApplication.dispatch()`。这层可以作为未来 AI/Skill/MCP 的稳定外壳，但当前不包含任何
 AI 调用逻辑。
+
+## Audit Log
+
+UI 和 CLI 执行 command 后会追加 JSONL 审计记录，默认位置：
+
+```text
+data/audit.log.jsonl
+```
+
+每行包含：
+
+- command 类型和 payload
+- source / dry_run / request_id / actor
+- ok / changed / would_change / task_id
+- preview 和 events
+
+审计日志用于追溯未来 AI 或自动化执行过什么。它不是业务数据源，任务数据仍然只由 repository
+读写 `tasks.json`。

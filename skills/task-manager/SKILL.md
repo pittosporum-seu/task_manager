@@ -31,9 +31,11 @@ Natural language
 ```bash
 python -m app.cli --file data/tasks.json list --view inbox
 python -m app.cli --file data/tasks.json add "写周报" --quadrant q1
+python -m app.cli --file data/tasks.json delete <task-id> --dry-run
 ```
 
 Skill 后续应优先调用 CLI 或 MCP，不要直接编辑 JSON 文件。
+涉及删除或批量整理时，必须先使用 dry-run 获取 preview，不要直接执行 destructive command。
 
 ## 当前可用的 command 概念
 

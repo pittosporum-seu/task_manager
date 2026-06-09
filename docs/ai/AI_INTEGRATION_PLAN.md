@@ -43,8 +43,11 @@ AI 不允许直接编辑 `data/tasks.json`。
 - `CommandResult` JSON 序列化，供 CLI/未来 MCP 复用。
 - `ListTasks` query DTO，供 CLI/未来 AI 查询不同任务视图。
 - command 层已加入基础校验，例如空标题和非法象限。
+- `CommandContext` 已支持 source、dry_run、request_id、actor。
+- CLI 删除任务要求 `--confirm` 或 `--dry-run`。
+- command 执行会写入 `audit.log.jsonl`，便于追溯自动化行为。
 
 ## 后续可扩展点
 
-- 增加审计日志，记录 command 来源和执行结果。
-- 增加 dry-run 模式，让 AI 先给出计划再执行。
+- 增加批量 command，但批量删除必须 dry-run + confirm。
+- 增加更细的权限策略，例如按 actor 限制 destructive command。

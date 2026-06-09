@@ -11,6 +11,8 @@ class CommandResult:
     ok: bool
     message: str = ""
     changed: bool = False
+    would_change: bool = False
     task_id: Optional[str] = None
+    preview: dict[str, Any] = field(default_factory=dict)
     data: dict[str, Any] = field(default_factory=dict)
     events: list[ApplicationEvent] = field(default_factory=list)

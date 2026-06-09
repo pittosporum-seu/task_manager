@@ -36,6 +36,7 @@ def test_task_service_crud_and_persistence(tmp_path, qapp):
 
     reloaded.delete_task(task.id)
     assert reloaded.get_task(task.id) is None
+    assert (tmp_path / "audit.log.jsonl").exists()
 
 
 def test_task_service_queries_use_domain_rules(tmp_path, qapp):

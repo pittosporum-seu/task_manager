@@ -14,10 +14,12 @@ from app.application.commands import (
     ReopenTask,
     UpdateTask,
 )
+from app.application.context import CommandContext
 from app.application.event_bus import EventBus
 from app.application.events import ReminderTriggered, TaskChanged
 from app.application.task_app import TaskApplication
 from app.config import DATA_DIR
+from app.infrastructure.audit_log import JsonlAuditLog
 from app.infrastructure.json_task_repository import JsonTaskRepository
 from app.models.task import Task
 
@@ -30,10 +32,12 @@ class TaskService(QObject):
         super().__init__()
         self.filepath = Path(filename) if filename else DATA_DIR / "tasks.json"
         self.repository = JsonTaskRepository(self.filepath)
+        self.audit_log = JsonlAuditLog(self.filepath.parent / "audit.log.jsonl")
+        self.context = CommandContext(source="ui")
         self.event_bus = EventBus()
         self.event_bus.subscribe(TaskChanged, self._handle_task_changed)
         self.event_bus.subscribe(ReminderTriggered, self._handle_reminder_triggered)
-        self.application = TaskApplication(self.repository, self.event_bus)
+        self.application = TaskApplication(self.repository, self.event_bus, self.audit_log)
 
         self.timer = None
         if enable_timer:
@@ -61,7 +65,7 @@ class TaskService(QObject):
         reminder_minutes: Optional[int] = None,
         quadrant: str = "inbox",
     ) -> Task:
-        result = self.application.dispatch(
+        result = self._dispatch(
             AddTask(
                 title=title,
                 description=description,
@@ -85,7 +89,7 @@ class TaskService(QObject):
         has_time: bool,
         reminder_minutes: Optional[int],
     ) -> None:
-        self.application.dispatch(
+        self._dispatch(
             UpdateTask(
                 task_id=task_id,
                 title=title,
@@ -97,10 +101,10 @@ class TaskService(QObject):
         )
 
     def delete_task(self, task_id: str) -> None:
-        self.application.dispatch(DeleteTask(task_id=task_id))
+        self._dispatch(DeleteTask(task_id=task_id))
 
     def move_task(self, task_id: str, new_quadrant: str) -> None:
-        self.application.dispatch(MoveTask(task_id=task_id, new_quadrant=new_quadrant))
+        self._dispatch(MoveTask(task_id=task_id, new_quadrant=new_quadrant))
 
     def toggle_complete(
         self,
@@ -109,9 +113,9 @@ class TaskService(QObject):
         completed_at: Optional[str] = None,
     ) -> None:
         if completed:
-            self.application.dispatch(CompleteTask(task_id=task_id, completed_at=completed_at))
+            self._dispatch(CompleteTask(task_id=task_id, completed_at=completed_at))
         else:
-            self.application.dispatch(ReopenTask(task_id=task_id))
+            self._dispatch(ReopenTask(task_id=task_id))
 
     def get_task(self, task_id: str) -> Task | None:
         return self.application.get_task(task_id)
@@ -126,7 +130,10 @@ class TaskService(QObject):
         return self.application.get_archived_tasks()
 
     def check_reminders(self) -> None:
-        self.application.dispatch(CheckReminders())
+        self._dispatch(CheckReminders())
+
+    def _dispatch(self, command):
+        return self.application.dispatch(command, context=self.context)
 
     def _handle_task_changed(self, event) -> None:
         self.data_changed.emit()
