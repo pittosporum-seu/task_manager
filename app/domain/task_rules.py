@@ -12,6 +12,11 @@ QUADRANT_DEFINITIONS = (
     {"id": "q3", "title_key": "q3_title"},
     {"id": "q4", "title_key": "q4_title"},
 )
+VALID_QUADRANTS = ("inbox",) + tuple(definition["id"] for definition in QUADRANT_DEFINITIONS)
+
+
+def is_valid_quadrant(quadrant_id: str) -> bool:
+    return quadrant_id in VALID_QUADRANTS
 
 
 def today_key(now: Optional[datetime | date] = None) -> str:

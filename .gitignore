@@ -11,6 +11,7 @@ build/
 *.spec
 *.egg-info/
 data/tasks.json
+data/audit.log.jsonl
 work/
 outputs/
 
