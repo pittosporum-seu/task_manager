@@ -18,6 +18,7 @@ class Task:
     status: str = "pending"
     completed: bool = False
     completed_at: Optional[str] = None
+    sort_order: int = 0
 
     @classmethod
     def create(
@@ -55,6 +56,7 @@ class Task:
             "status": "pending",
             "completed": False,
             "completed_at": None,
+            "sort_order": 0,
         }
         fields = cls.__dataclass_fields__.keys()
         data = {**defaults, **{k: v for k, v in payload.items() if k in fields}}

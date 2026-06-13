@@ -46,6 +46,7 @@ class TaskService(QObject):
                 task = Task.from_dict(payload, fallback_id=task_id)
                 tasks[task.id] = task
             self.tasks = tasks
+            self.normalize_sort_orders()
         except (OSError, json.JSONDecodeError, TypeError) as exc:
             print(f"Error loading tasks: {exc}")
 
@@ -75,6 +76,7 @@ class TaskService(QObject):
             reminder_minutes=reminder_minutes,
             quadrant=quadrant,
         )
+        task.sort_order = self.next_sort_order(quadrant)
         self.tasks[task.id] = task
         self.save_data()
         return task
@@ -112,12 +114,59 @@ class TaskService(QObject):
             del self.tasks[task_id]
             self.save_data()
 
-    def move_task(self, task_id: str, new_quadrant: str) -> None:
+    def move_task(self, task_id: str, new_quadrant: str, insert_index: Optional[int] = None) -> None:
         task = self.tasks.get(task_id)
-        if not task or task.quadrant == new_quadrant:
+        if not task:
             return
+
+        old_quadrant = task.quadrant
+        old_index = self.visible_index(task_id, old_quadrant)
+        if old_quadrant == new_quadrant and insert_index is not None and old_index is not None:
+            if insert_index > old_index:
+                insert_index -= 1
+            if insert_index == old_index:
+                return
+
         task.quadrant = new_quadrant
+        if insert_index is None:
+            task.sort_order = self.next_sort_order(new_quadrant)
+        else:
+            self.reorder_visible_tasks(new_quadrant, task_id, insert_index)
+
         self.save_data()
+
+    def next_sort_order(self, quadrant: str) -> int:
+        orders = [task.sort_order for task in self.tasks.values() if task.quadrant == quadrant]
+        return (max(orders) + 1000) if orders else 1000
+
+    def visible_index(self, task_id: str, quadrant: str) -> Optional[int]:
+        for index, task in enumerate(self.visible_tasks_for_quadrant(quadrant)):
+            if task.id == task_id:
+                return index
+        return None
+
+    def visible_tasks_for_quadrant(self, quadrant: str) -> list[Task]:
+        if quadrant == "inbox":
+            return self.get_visible_inbox_tasks()
+        return [task for task in self.get_visible_matrix_tasks() if task.quadrant == quadrant]
+
+    def reorder_visible_tasks(self, quadrant: str, moved_task_id: str, insert_index: int) -> None:
+        ordered = [task for task in self.visible_tasks_for_quadrant(quadrant) if task.id != moved_task_id]
+        moved_task = self.tasks.get(moved_task_id)
+        if moved_task is None:
+            return
+
+        insert_index = max(0, min(insert_index, len(ordered)))
+        ordered.insert(insert_index, moved_task)
+        for index, task in enumerate(ordered):
+            task.sort_order = (index + 1) * 1000
+
+    def normalize_sort_orders(self) -> None:
+        for quadrant in {"inbox", "q1", "q2", "q3", "q4"}:
+            ordered = self.visible_tasks_for_quadrant(quadrant)
+            for index, task in enumerate(ordered):
+                if task.sort_order <= 0:
+                    task.sort_order = (index + 1) * 1000
 
     def toggle_complete(self, task_id: str, completed: bool) -> None:
         task = self.tasks.get(task_id)
