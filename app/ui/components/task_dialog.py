@@ -1,18 +1,25 @@
 from datetime import datetime
 
-from PyQt6.QtCore import QDate, QDateTime, QTime, Qt
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QDate, QDateTime, QPoint, QTime, Qt
+from PyQt6.QtGui import QColor, QIcon, QTextCharFormat
 from PyQt6.QtWidgets import (
+    QCalendarWidget,
     QCheckBox,
     QComboBox,
     QDateTimeEdit,
     QDialog,
+    QDial,
+    QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QSpinBox,
     QTextEdit,
+    QToolButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from app.config import (
@@ -20,13 +27,188 @@ from app.config import (
     STYLE_BTN_PRIMARY,
     STYLE_BTN_SECONDARY,
     STYLE_CHECKBOX,
+    STYLE_CALENDAR,
     STYLE_COMBOBOX,
     STYLE_DIALOG_CONTAINER,
     STYLE_FORM_LABEL,
     STYLE_INPUT,
+    STYLE_TIME_PICKER,
 )
 from app.models.task import Task
 from app.resources.strings import Strings
+
+
+class ClickableDateTimeEdit(QDateTimeEdit):
+    def __init__(self, parent_dialog: "TaskDialog"):
+        super().__init__(parent_dialog)
+        self.parent_dialog = parent_dialog
+        self.setReadOnly(True)
+        self.lineEdit().installEventFilter(self)
+
+    def eventFilter(self, watched, event) -> bool:
+        if watched == self.lineEdit() and self.isEnabled():
+            if event.type() == event.Type.MouseButtonPress:
+                self.parent_dialog.open_date_time_picker()
+                return True
+            if event.type() == event.Type.KeyPress and event.key() in (
+                Qt.Key.Key_Return,
+                Qt.Key.Key_Enter,
+                Qt.Key.Key_Space,
+            ):
+                self.parent_dialog.open_date_time_picker()
+                return True
+        return super().eventFilter(watched, event)
+
+    def mousePressEvent(self, event) -> None:
+        if self.isEnabled():
+            self.parent_dialog.open_date_time_picker()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def keyPressEvent(self, event) -> None:
+        if self.isEnabled() and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
+            self.parent_dialog.open_date_time_picker()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+
+class DateTimePickerPopup(QWidget):
+    def __init__(self, owner: "TaskDialog", include_time: bool):
+        super().__init__(owner, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.owner = owner
+        self.include_time = include_time
+        self.setObjectName("dateTimePickerPopup")
+        self.setStyleSheet(STYLE_TIME_PICKER)
+        self.setup_ui()
+        self.load_from_edit()
+
+    def setup_ui(self) -> None:
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(12)
+
+        self.calendar = QCalendarWidget()
+        self.owner.configure_calendar_widget(self.calendar)
+        self.calendar.setSelectedDate(self.owner.due_edit.date())
+        self.calendar.clicked.connect(self.apply_selection)
+        layout.addWidget(self.calendar)
+
+        self.time_panel = QFrame()
+        self.time_panel.setObjectName("timePanel")
+        time_layout = QVBoxLayout(self.time_panel)
+        time_layout.setContentsMargins(16, 14, 16, 14)
+        time_layout.setSpacing(10)
+
+        title = QLabel("24 小时时间")
+        title.setObjectName("timeTitle")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        time_layout.addWidget(title)
+
+        self.time_value = QLabel()
+        self.time_value.setObjectName("timeValue")
+        self.time_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        time_layout.addWidget(self.time_value)
+
+        dial_layout = QGridLayout()
+        dial_layout.setHorizontalSpacing(10)
+        dial_layout.setVerticalSpacing(4)
+
+        self.hour_dial = self.create_dial(0, 23)
+        self.minute_dial = self.create_dial(0, 59)
+        self.hour_dial.valueChanged.connect(self.sync_hour_from_dial)
+        self.minute_dial.valueChanged.connect(self.sync_minute_from_dial)
+        dial_layout.addWidget(self.hour_dial, 0, 0)
+        dial_layout.addWidget(self.minute_dial, 0, 1)
+
+        hour_label = QLabel("时")
+        minute_label = QLabel("分")
+        for label in (hour_label, minute_label):
+            label.setObjectName("timeCaption")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        dial_layout.addWidget(hour_label, 1, 0)
+        dial_layout.addWidget(minute_label, 1, 1)
+        time_layout.addLayout(dial_layout)
+
+        spin_layout = QHBoxLayout()
+        self.hour_spin = self.create_spin(0, 23)
+        self.minute_spin = self.create_spin(0, 59)
+        self.hour_spin.valueChanged.connect(self.sync_hour_from_spin)
+        self.minute_spin.valueChanged.connect(self.sync_minute_from_spin)
+        spin_layout.addWidget(self.hour_spin)
+        spin_layout.addWidget(self.minute_spin)
+        time_layout.addLayout(spin_layout)
+
+        btn_done = QPushButton("确定")
+        btn_done.setObjectName("pickerDoneButton")
+        btn_done.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_done.clicked.connect(self.close)
+        time_layout.addWidget(btn_done)
+
+        layout.addWidget(self.time_panel)
+        self.time_panel.setVisible(self.include_time)
+
+    def create_dial(self, minimum: int, maximum: int) -> QDial:
+        dial = QDial()
+        dial.setRange(minimum, maximum)
+        dial.setNotchesVisible(True)
+        dial.setWrapping(True)
+        dial.setFixedSize(108, 108)
+        return dial
+
+    def create_spin(self, minimum: int, maximum: int) -> QSpinBox:
+        spin = QSpinBox()
+        spin.setRange(minimum, maximum)
+        spin.setWrapping(True)
+        spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        spin.setButtonSymbols(QSpinBox.ButtonSymbols.PlusMinus)
+        return spin
+
+    def load_from_edit(self) -> None:
+        current = self.owner.due_edit.dateTime()
+        self.calendar.setSelectedDate(current.date())
+        hour = current.time().hour()
+        minute = current.time().minute()
+        self.hour_dial.setValue(hour)
+        self.minute_dial.setValue(minute)
+        self.hour_spin.setValue(hour)
+        self.minute_spin.setValue(minute)
+        self.update_time_value()
+
+    def sync_hour_from_dial(self, value: int) -> None:
+        self.hour_spin.blockSignals(True)
+        self.hour_spin.setValue(value)
+        self.hour_spin.blockSignals(False)
+        self.apply_selection()
+
+    def sync_minute_from_dial(self, value: int) -> None:
+        self.minute_spin.blockSignals(True)
+        self.minute_spin.setValue(value)
+        self.minute_spin.blockSignals(False)
+        self.apply_selection()
+
+    def sync_hour_from_spin(self, value: int) -> None:
+        self.hour_dial.blockSignals(True)
+        self.hour_dial.setValue(value)
+        self.hour_dial.blockSignals(False)
+        self.apply_selection()
+
+    def sync_minute_from_spin(self, value: int) -> None:
+        self.minute_dial.blockSignals(True)
+        self.minute_dial.setValue(value)
+        self.minute_dial.blockSignals(False)
+        self.apply_selection()
+
+    def apply_selection(self) -> None:
+        time = self.owner.due_edit.time()
+        if self.include_time:
+            time = QTime(self.hour_spin.value(), self.minute_spin.value())
+        self.owner.due_edit.setDateTime(QDateTime(self.calendar.selectedDate(), time))
+        self.update_time_value()
+
+    def update_time_value(self) -> None:
+        self.time_value.setText(f"{self.hour_spin.value():02d}:{self.minute_spin.value():02d}")
 
 
 class TaskDialog(QDialog):
@@ -76,22 +258,32 @@ class TaskDialog(QDialog):
         self.desc_edit.setFixedHeight(120)
         layout.addWidget(self.desc_edit)
 
-        self.has_date_check = QCheckBox(Strings.get("label_has_date"))
-        self.has_date_check.setStyleSheet(STYLE_CHECKBOX)
-        self.has_date_check.stateChanged.connect(self.update_date_controls)
-        layout.addWidget(self.has_date_check)
-
-        self.due_edit = QDateTimeEdit()
+        self.date_time_popup = None
+        self.due_edit = ClickableDateTimeEdit(self)
         self.due_edit.setCalendarPopup(True)
         self.due_edit.setDisplayFormat("yyyy-MM-dd HH:mm")
         self.due_edit.setDateTime(QDateTime.currentDateTime())
         self.due_edit.setStyleSheet(STYLE_INPUT)
         layout.addWidget(self.due_edit)
 
+        date_option_layout = QHBoxLayout()
+        date_option_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.has_date_check = QCheckBox(Strings.get("label_has_date"))
+        self.has_date_check.setStyleSheet(STYLE_CHECKBOX)
+        self.has_date_check.setChecked(True)
+        self.has_date_check.stateChanged.connect(self.update_date_controls)
+        date_option_layout.addWidget(self.has_date_check)
+
+        date_option_layout.addStretch()
+
         self.has_time_check = QCheckBox(Strings.get("label_has_time"))
         self.has_time_check.setStyleSheet(STYLE_CHECKBOX)
+        self.has_time_check.setChecked(False)
         self.has_time_check.stateChanged.connect(self.update_date_controls)
-        layout.addWidget(self.has_time_check)
+        date_option_layout.addWidget(self.has_time_check)
+
+        layout.addLayout(date_option_layout)
 
         lbl_reminder = QLabel(Strings.get("label_reminder"))
         lbl_reminder.setStyleSheet(STYLE_FORM_LABEL)
@@ -123,6 +315,40 @@ class TaskDialog(QDialog):
         layout.addLayout(button_layout)
 
         self.update_date_controls()
+
+    def configure_calendar_widget(self, calendar: QCalendarWidget) -> None:
+        calendar.setGridVisible(False)
+        calendar.setMinimumSize(360, 320)
+        calendar.setVerticalHeaderFormat(calendar.VerticalHeaderFormat.NoVerticalHeader)
+        calendar.setFirstDayOfWeek(Qt.DayOfWeek.Monday)
+        calendar.setStyleSheet(STYLE_CALENDAR)
+
+        day_format = QTextCharFormat()
+        day_format.setForeground(QColor("#111827"))
+        for day in Qt.DayOfWeek:
+            calendar.setWeekdayTextFormat(day, day_format)
+
+        for object_name, text in (
+            ("qt_calendar_prevmonth", "<"),
+            ("qt_calendar_nextmonth", ">"),
+        ):
+            button = calendar.findChild(QToolButton, object_name)
+            if button:
+                button.setIcon(QIcon())
+                button.setText(text)
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def open_date_time_picker(self) -> None:
+        if not self.has_date_check.isChecked():
+            return
+
+        if self.date_time_popup is not None:
+            self.date_time_popup.close()
+
+        self.date_time_popup = DateTimePickerPopup(self, self.has_time_check.isChecked())
+        pos = self.due_edit.mapToGlobal(QPoint(0, self.due_edit.height() + 6))
+        self.date_time_popup.move(pos)
+        self.date_time_popup.show()
 
     def load_task(self) -> None:
         if not self.task:

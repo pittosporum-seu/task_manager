@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 
 @dataclass(frozen=True)
@@ -34,6 +34,7 @@ class DeleteTask:
 class MoveTask:
     task_id: str
     new_quadrant: str
+    insert_index: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,12 @@ class CheckReminders:
     now: Optional[datetime] = None
 
 
-TaskCommand = (
-    AddTask | UpdateTask | DeleteTask | MoveTask | CompleteTask | ReopenTask | CheckReminders
-)
+TaskCommand = Union[
+    AddTask,
+    UpdateTask,
+    DeleteTask,
+    MoveTask,
+    CompleteTask,
+    ReopenTask,
+    CheckReminders,
+]

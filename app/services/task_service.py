@@ -103,8 +103,10 @@ class TaskService(QObject):
     def delete_task(self, task_id: str) -> None:
         self._dispatch(DeleteTask(task_id=task_id))
 
-    def move_task(self, task_id: str, new_quadrant: str) -> None:
-        self._dispatch(MoveTask(task_id=task_id, new_quadrant=new_quadrant))
+    def move_task(self, task_id: str, new_quadrant: str, insert_index: Optional[int] = None) -> None:
+        self._dispatch(
+            MoveTask(task_id=task_id, new_quadrant=new_quadrant, insert_index=insert_index)
+        )
 
     def toggle_complete(
         self,

@@ -52,6 +52,36 @@ def test_task_service_queries_use_domain_rules(tmp_path, qapp):
     assert [task.id for task in service.get_archived_tasks()] == [historical_task.id]
 
 
+def test_task_service_reorders_within_quadrant(tmp_path, qapp):
+    service = make_service(tmp_path)
+    first = service.add_task("First")
+    second = service.add_task("Second")
+    third = service.add_task("Third")
+
+    service.move_task(third.id, "inbox", insert_index=0)
+
+    assert [task.id for task in service.get_visible_inbox_tasks()] == [
+        third.id,
+        first.id,
+        second.id,
+    ]
+
+
+def test_task_service_moves_to_quadrant_at_insert_index(tmp_path, qapp):
+    service = make_service(tmp_path)
+    first = service.add_task("First", quadrant="q1")
+    second = service.add_task("Second", quadrant="q1")
+    moved = service.add_task("Moved")
+
+    service.move_task(moved.id, "q1", insert_index=1)
+
+    assert [task.id for task in service.visible_tasks_for_quadrant("q1")] == [
+        first.id,
+        moved.id,
+        second.id,
+    ]
+
+
 def test_task_service_reminder_signal(tmp_path, qapp):
     service = make_service(tmp_path)
     task = service.add_task(

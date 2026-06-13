@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 
 @dataclass(frozen=True)
@@ -16,4 +16,4 @@ class ReminderTriggered:
     title: str
 
 
-ApplicationEvent = TaskChanged | ReminderTriggered
+ApplicationEvent = Union[TaskChanged, ReminderTriggered]
