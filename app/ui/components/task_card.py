@@ -87,7 +87,8 @@ class TaskCardWidget(QWidget):
         self.popup = None
         self.on_status_change = on_status_change
         self.has_bottom_info = bool(task.due_date or task.reminder_minutes is not None)
-        self.card_padding = 20
+        self.shadow_margin = 4
+        self.card_padding = 24
         self.checkbox_column = 30
         self.bottom_info_height = 24
         self.spacing = 4
@@ -96,8 +97,22 @@ class TaskCardWidget(QWidget):
         self.setStyleSheet(STYLE_CARD_CONTAINER)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(self.spacing)
+        layout.setContentsMargins(self.shadow_margin, self.shadow_margin, self.shadow_margin, self.shadow_margin)
+        layout.setSpacing(0)
+
+        surface = QFrame()
+        surface.setObjectName("taskCardSurface")
+        surface.setStyleSheet(STYLE_CARD_CONTAINER)
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(12)
+        shadow.setColor(QColor(17, 24, 39, 24))
+        shadow.setOffset(0, 3)
+        surface.setGraphicsEffect(shadow)
+        layout.addWidget(surface)
+
+        content_layout = QVBoxLayout(surface)
+        content_layout.setContentsMargins(12, 12, 12, 12)
+        content_layout.setSpacing(self.spacing)
 
         top_layout = QHBoxLayout()
         top_layout.setSpacing(8)
@@ -117,7 +132,7 @@ class TaskCardWidget(QWidget):
         self.lbl_title.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         top_layout.addWidget(self.lbl_title, 1)
 
-        layout.addLayout(top_layout)
+        content_layout.addLayout(top_layout)
         self.update_visual_style(task.completed)
 
         if self.has_bottom_info:
@@ -136,9 +151,9 @@ class TaskCardWidget(QWidget):
                 info_layout.addWidget(lbl_reminder)
 
             info_layout.addStretch()
-            layout.addLayout(info_layout)
+            content_layout.addLayout(info_layout)
 
-        layout.addStretch()
+        content_layout.addStretch()
 
     def _format_due_date(self) -> str:
         try:
@@ -158,7 +173,15 @@ class TaskCardWidget(QWidget):
             return STYLE_CARD_META
 
         if due_at < datetime.now() and not self.task.completed:
-            return f"QLabel {{ font-size: 11px; color: {COLORS['danger']}; font-weight: 700; border: none; background: transparent; }}"
+            return f"""
+                QLabel {{
+                    font-size: 11px;
+                    color: {COLORS["danger"]};
+                    font-weight: 700;
+                    border: none;
+                    background: transparent;
+                }}
+            """
         if not self.task.has_time:
             return f"QLabel {{ font-size: 11px; color: {COLORS['primary']}; font-weight: 600; border: none; background: transparent; }}"
         return STYLE_CARD_META
@@ -187,7 +210,7 @@ class TaskCardWidget(QWidget):
             Qt.TextFlag.TextWordWrap,
             self.task.title,
         )
-        total_height = self.card_padding + rect.height()
+        total_height = (self.shadow_margin * 2) + self.card_padding + rect.height()
         if self.has_bottom_info:
             total_height += self.bottom_info_height + self.spacing
         return max(54, total_height)

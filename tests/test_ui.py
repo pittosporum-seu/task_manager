@@ -1,4 +1,5 @@
 from app.services.task_service import TaskService
+from app.ui.components.task_dialog import TaskDialog
 from app.ui.views.archive_dialog import ArchiveDialog
 from app.ui.views.matrix import MatrixView
 from app.ui.views.sidebar import SidebarView
@@ -43,3 +44,14 @@ def test_ui_smoke_workflow(tmp_path, qapp):
     archive.close()
     matrix.close()
     sidebar.close()
+
+
+def test_new_task_dialog_due_date_defaults(qapp):
+    dialog = TaskDialog()
+
+    assert dialog.has_date_check.isChecked()
+    assert not dialog.has_time_check.isChecked()
+    assert dialog.due_edit.isEnabled()
+    assert dialog.due_edit.displayFormat() == "yyyy-MM-dd"
+
+    dialog.close()

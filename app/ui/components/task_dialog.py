@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from PyQt6.QtCore import QDate, QDateTime, QTime, Qt
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QColor, QIcon, QTextCharFormat
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QTextEdit,
+    QToolButton,
     QVBoxLayout,
 )
 
@@ -20,6 +21,7 @@ from app.config import (
     STYLE_BTN_PRIMARY,
     STYLE_BTN_SECONDARY,
     STYLE_CHECKBOX,
+    STYLE_CALENDAR,
     STYLE_COMBOBOX,
     STYLE_DIALOG_CONTAINER,
     STYLE_FORM_LABEL,
@@ -76,22 +78,32 @@ class TaskDialog(QDialog):
         self.desc_edit.setFixedHeight(120)
         layout.addWidget(self.desc_edit)
 
-        self.has_date_check = QCheckBox(Strings.get("label_has_date"))
-        self.has_date_check.setStyleSheet(STYLE_CHECKBOX)
-        self.has_date_check.stateChanged.connect(self.update_date_controls)
-        layout.addWidget(self.has_date_check)
-
         self.due_edit = QDateTimeEdit()
         self.due_edit.setCalendarPopup(True)
         self.due_edit.setDisplayFormat("yyyy-MM-dd HH:mm")
         self.due_edit.setDateTime(QDateTime.currentDateTime())
         self.due_edit.setStyleSheet(STYLE_INPUT)
+        self.configure_calendar()
         layout.addWidget(self.due_edit)
+
+        date_option_layout = QHBoxLayout()
+        date_option_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.has_date_check = QCheckBox(Strings.get("label_has_date"))
+        self.has_date_check.setStyleSheet(STYLE_CHECKBOX)
+        self.has_date_check.setChecked(True)
+        self.has_date_check.stateChanged.connect(self.update_date_controls)
+        date_option_layout.addWidget(self.has_date_check)
+
+        date_option_layout.addStretch()
 
         self.has_time_check = QCheckBox(Strings.get("label_has_time"))
         self.has_time_check.setStyleSheet(STYLE_CHECKBOX)
+        self.has_time_check.setChecked(False)
         self.has_time_check.stateChanged.connect(self.update_date_controls)
-        layout.addWidget(self.has_time_check)
+        date_option_layout.addWidget(self.has_time_check)
+
+        layout.addLayout(date_option_layout)
 
         lbl_reminder = QLabel(Strings.get("label_reminder"))
         lbl_reminder.setStyleSheet(STYLE_FORM_LABEL)
@@ -123,6 +135,29 @@ class TaskDialog(QDialog):
         layout.addLayout(button_layout)
 
         self.update_date_controls()
+
+    def configure_calendar(self) -> None:
+        calendar = self.due_edit.calendarWidget()
+        calendar.setGridVisible(False)
+        calendar.setMinimumSize(360, 320)
+        calendar.setVerticalHeaderFormat(calendar.VerticalHeaderFormat.NoVerticalHeader)
+        calendar.setFirstDayOfWeek(Qt.DayOfWeek.Monday)
+        calendar.setStyleSheet(STYLE_CALENDAR)
+
+        day_format = QTextCharFormat()
+        day_format.setForeground(QColor("#111827"))
+        for day in Qt.DayOfWeek:
+            calendar.setWeekdayTextFormat(day, day_format)
+
+        for object_name, text in (
+            ("qt_calendar_prevmonth", "<"),
+            ("qt_calendar_nextmonth", ">"),
+        ):
+            button = calendar.findChild(QToolButton, object_name)
+            if button:
+                button.setIcon(QIcon())
+                button.setText(text)
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def load_task(self) -> None:
         if not self.task:
