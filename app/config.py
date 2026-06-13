@@ -348,6 +348,57 @@ STYLE_CALENDAR = f"""
     }}
 """
 
+STYLE_TIME_PICKER = f"""
+    QWidget#dateTimePickerPopup {{
+        background-color: {COLORS["surface"]};
+        border: 1px solid {COLORS["border"]};
+        border-radius: 14px;
+    }}
+    QFrame#timePanel {{
+        background-color: {COLORS["surface_soft"]};
+        border: 1px solid {COLORS["border"]};
+        border-radius: 12px;
+    }}
+    QLabel#timeTitle {{
+        color: {COLORS["text_main"]};
+        font-size: 13px;
+        font-weight: 700;
+    }}
+    QLabel#timeValue {{
+        color: {COLORS["primary"]};
+        font-size: 28px;
+        font-weight: 800;
+    }}
+    QLabel#timeCaption {{
+        color: {COLORS["text_muted"]};
+        font-size: 11px;
+        font-weight: 700;
+    }}
+    QDial {{
+        background-color: transparent;
+    }}
+    QSpinBox {{
+        background-color: {COLORS["surface"]};
+        border: 1px solid {COLORS["border"]};
+        border-radius: 8px;
+        padding: 6px 8px;
+        color: {COLORS["text_main"]};
+        font-size: 13px;
+    }}
+    QPushButton#pickerDoneButton {{
+        background-color: {COLORS["primary"]};
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 18px;
+        font-size: 13px;
+        font-weight: 700;
+    }}
+    QPushButton#pickerDoneButton:hover {{
+        background-color: {COLORS["primary_hover"]};
+    }}
+"""
+
 STYLE_COMBOBOX = f"""
     QComboBox {{
         padding: 8px;

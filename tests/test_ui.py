@@ -1,5 +1,5 @@
 from app.services.task_service import TaskService
-from app.ui.components.task_dialog import TaskDialog
+from app.ui.components.task_dialog import DateTimePickerPopup, TaskDialog
 from app.ui.views.archive_dialog import ArchiveDialog
 from app.ui.views.matrix import MatrixView
 from app.ui.views.sidebar import SidebarView
@@ -53,5 +53,25 @@ def test_new_task_dialog_due_date_defaults(qapp):
     assert not dialog.has_time_check.isChecked()
     assert dialog.due_edit.isEnabled()
     assert dialog.due_edit.displayFormat() == "yyyy-MM-dd"
+
+    dialog.close()
+
+
+def test_date_time_picker_shows_time_panel_only_when_needed(qapp):
+    dialog = TaskDialog()
+
+    picker_with_time = DateTimePickerPopup(dialog, include_time=True)
+    assert picker_with_time.include_time
+    assert not picker_with_time.time_panel.isHidden()
+    picker_with_time.hour_spin.setValue(18)
+    picker_with_time.minute_spin.setValue(45)
+    picker_with_time.apply_selection()
+    assert dialog.due_edit.time().hour() == 18
+    assert dialog.due_edit.time().minute() == 45
+    picker_with_time.close()
+
+    picker_without_time = DateTimePickerPopup(dialog, include_time=False)
+    assert picker_without_time.time_panel.isHidden()
+    picker_without_time.close()
 
     dialog.close()
