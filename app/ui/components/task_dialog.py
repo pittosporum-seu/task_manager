@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from PyQt6.QtCore import QDate, QDateTime, QPoint, QTime, Qt
+from PyQt6.QtCore import QDate, QDateTime, QPoint, QRect, QSize, QTime, Qt
 from PyQt6.QtGui import QColor, QIcon, QTextCharFormat
 from PyQt6.QtWidgets import (
     QCalendarWidget,
@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QLineEdit,
     QPushButton,
     QSpinBox,
@@ -37,6 +38,80 @@ from app.config import (
 )
 from app.models.task import Task
 from app.resources.strings import Strings
+
+
+class FlowLayout(QLayout):
+    def __init__(self, parent=None, margin: int = 0, spacing: int = 6):
+        super().__init__(parent)
+        self.item_list = []
+        self.setContentsMargins(margin, margin, margin, margin)
+        self.setSpacing(spacing)
+
+    def addItem(self, item) -> None:
+        self.item_list.append(item)
+
+    def count(self) -> int:
+        return len(self.item_list)
+
+    def itemAt(self, index: int):
+        if 0 <= index < len(self.item_list):
+            return self.item_list[index]
+        return None
+
+    def takeAt(self, index: int):
+        if 0 <= index < len(self.item_list):
+            return self.item_list.pop(index)
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return self._do_layout(QRect(0, 0, width, 0), test_only=True)
+
+    def setGeometry(self, rect: QRect) -> None:
+        super().setGeometry(rect)
+        self._do_layout(rect, test_only=False)
+
+    def sizeHint(self) -> QSize:
+        margins = self.contentsMargins()
+        width = sum(item.sizeHint().width() for item in self.item_list)
+        if self.item_list:
+            width += self.spacing() * (len(self.item_list) - 1)
+        height = max((item.sizeHint().height() for item in self.item_list), default=0)
+        return QSize(
+            width + margins.left() + margins.right(),
+            height + margins.top() + margins.bottom(),
+        )
+
+    def minimumSize(self) -> QSize:
+        size = QSize()
+        for item in self.item_list:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+        return size
+
+    def _do_layout(self, rect: QRect, test_only: bool) -> int:
+        x = rect.x()
+        y = rect.y()
+        line_height = 0
+        spacing = self.spacing()
+        for item in self.item_list:
+            next_x = x + item.sizeHint().width() + spacing
+            if next_x - spacing > rect.right() and line_height > 0:
+                x = rect.x()
+                y = y + line_height + spacing
+                next_x = x + item.sizeHint().width() + spacing
+                line_height = 0
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
+            x = next_x
+            line_height = max(line_height, item.sizeHint().height())
+        return y + line_height - rect.y()
 
 
 class ClickableDateTimeEdit(QDateTimeEdit):
@@ -428,9 +503,8 @@ class TaskDialog(QDialog):
     def refresh_tag_controls(self) -> None:
         self._clear_layout(self.tag_layout)
 
-        selected_layout = QHBoxLayout()
-        selected_layout.setContentsMargins(0, 0, 0, 0)
-        selected_layout.setSpacing(6)
+        selected_widget = QWidget()
+        selected_layout = FlowLayout(selected_widget, spacing=6)
         for tag in self.selected_tags:
             selected_layout.addWidget(
                 self._make_tag_button(tag, lambda checked=False, t=tag: self.remove_tag(t["name"]))
@@ -442,30 +516,40 @@ class TaskDialog(QDialog):
         btn_expand.setStyleSheet(self._tag_add_button_style())
         btn_expand.clicked.connect(self.toggle_tag_picker)
         selected_layout.addWidget(btn_expand)
-        selected_layout.addStretch()
-        self.tag_layout.addLayout(selected_layout)
+        self.tag_layout.addWidget(selected_widget)
 
         if not self.show_tag_picker:
             return
+
+        candidate_frame = QFrame()
+        candidate_frame.setObjectName("tagCandidateFrame")
+        candidate_frame.setStyleSheet(
+            """
+            QFrame#tagCandidateFrame {
+                background-color: #F6F7F9;
+                border: 1px solid #E5E7EB;
+                border-radius: 10px;
+            }
+            """
+        )
+        candidate_layout = QVBoxLayout(candidate_frame)
+        candidate_layout.setContentsMargins(10, 10, 10, 10)
+        candidate_layout.setSpacing(8)
 
         available = [
             tag for tag in self.all_tags if not self._has_selected_tag(tag["name"])
         ]
         if available:
-            grid = QGridLayout()
-            grid.setContentsMargins(0, 0, 0, 0)
-            grid.setHorizontalSpacing(6)
-            grid.setVerticalSpacing(6)
-            for index, tag in enumerate(available):
-                grid.addWidget(
+            available_widget = QWidget()
+            available_layout = FlowLayout(available_widget, spacing=6)
+            for tag in available:
+                available_layout.addWidget(
                     self._make_tag_button(
                         tag,
                         lambda checked=False, t=tag: self.add_existing_tag(t),
-                    ),
-                    index // 4,
-                    index % 4,
+                    )
                 )
-            self.tag_layout.addLayout(grid)
+            candidate_layout.addWidget(available_widget)
 
         create_layout = QHBoxLayout()
         create_layout.setContentsMargins(0, 0, 0, 0)
@@ -482,7 +566,8 @@ class TaskDialog(QDialog):
         btn_add_new.setStyleSheet(self._tag_add_button_style())
         btn_add_new.clicked.connect(self.add_new_tag)
         create_layout.addWidget(btn_add_new)
-        self.tag_layout.addLayout(create_layout)
+        candidate_layout.addLayout(create_layout)
+        self.tag_layout.addWidget(candidate_frame)
 
     def toggle_tag_picker(self) -> None:
         self.show_tag_picker = not self.show_tag_picker
@@ -544,11 +629,19 @@ class TaskDialog(QDialog):
         return normalized
 
     def _make_tag_button(self, tag: dict[str, str], handler) -> QPushButton:
-        button = QPushButton(tag["name"])
+        display_name = self._tag_display_name(tag["name"])
+        button = QPushButton(display_name)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
+        if display_name != tag["name"]:
+            button.setToolTip(tag["name"])
         button.setStyleSheet(self._tag_button_style(tag["color"]))
         button.clicked.connect(handler)
+        button.adjustSize()
+        button.setFixedSize(button.sizeHint())
         return button
+
+    def _tag_display_name(self, name: str) -> str:
+        return name if len(name) <= 4 else name[:4]
 
     def _tag_button_style(self, color: str) -> str:
         return f"""

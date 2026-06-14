@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
+    QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -30,9 +31,15 @@ class TagPill(QLabel):
     double_clicked = pyqtSignal(str)
 
     def __init__(self, tag: dict[str, str]):
-        super().__init__(tag["name"])
+        display_name = self._display_name(tag["name"])
+        super().__init__(display_name)
         self.tag = tag
+        self.drag_scroll_area = None
+        self.drag_start = None
+        self.scroll_start = 0
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        if display_name != tag["name"]:
+            self.setToolTip(tag["name"])
         self.setStyleSheet(
             f"""
             QLabel {{
@@ -46,10 +53,81 @@ class TagPill(QLabel):
             }}
             """
         )
+        self.adjustSize()
+        self.setFixedSize(self.sizeHint())
 
     def mouseDoubleClickEvent(self, event) -> None:
         self.double_clicked.emit(self.tag["name"])
         event.accept()
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_scroll_area = self._find_drag_scroll_area()
+            if self.drag_scroll_area is not None:
+                self.drag_start = event.globalPosition().toPoint()
+                self.scroll_start = self.drag_scroll_area.horizontalScrollBar().value()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if self.drag_scroll_area is not None and self.drag_start is not None:
+            delta = event.globalPosition().toPoint().x() - self.drag_start.x()
+            self.drag_scroll_area.horizontalScrollBar().setValue(self.scroll_start - delta)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        self.drag_scroll_area = None
+        self.drag_start = None
+        super().mouseReleaseEvent(event)
+
+    def _display_name(self, name: str) -> str:
+        return name if len(name) <= 4 else name[:4]
+
+    def _find_drag_scroll_area(self):
+        parent = self.parent()
+        while parent is not None:
+            if isinstance(parent, DragScrollArea):
+                return parent
+            parent = parent.parent()
+        return None
+
+
+class DragScrollArea(QScrollArea):
+    def __init__(self):
+        super().__init__()
+        self.drag_start = None
+        self.scroll_start = 0
+        self.setWidgetResizable(False)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_start = event.position().toPoint()
+            self.scroll_start = self.horizontalScrollBar().value()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if self.drag_start is not None:
+            delta = event.position().toPoint().x() - self.drag_start.x()
+            self.horizontalScrollBar().setValue(self.scroll_start - delta)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        if self.drag_start is not None:
+            self.drag_start = None
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
 
 class TaskInfoPopup(QWidget):
@@ -164,15 +242,26 @@ class TaskCardWidget(QWidget):
         self.update_visual_style(task.completed)
 
         if self.has_tags:
-            tag_layout = QHBoxLayout()
+            tag_container = QWidget()
+            tag_layout = QHBoxLayout(tag_container)
             tag_layout.setSpacing(5)
-            tag_layout.setContentsMargins(self.checkbox_column, 2, 0, 2)
+            tag_layout.setContentsMargins(0, 0, 0, 0)
             for tag in task.tags:
                 pill = TagPill(tag)
                 pill.double_clicked.connect(self.handle_tag_double_click)
                 tag_layout.addWidget(pill)
-            tag_layout.addStretch()
-            content_layout.addLayout(tag_layout)
+            tag_container.adjustSize()
+
+            tag_row_layout = QHBoxLayout()
+            tag_row_layout.setSpacing(0)
+            tag_row_layout.setContentsMargins(self.checkbox_column, 2, 0, 2)
+            self.tag_scroll = DragScrollArea()
+            self.tag_scroll.setFixedHeight(22)
+            self.tag_scroll.setWidget(tag_container)
+            tag_row_layout.addWidget(self.tag_scroll)
+            content_layout.addLayout(tag_row_layout)
+        else:
+            self.tag_scroll = None
 
         if self.has_bottom_info:
             info_layout = QHBoxLayout()
@@ -239,6 +328,11 @@ class TaskCardWidget(QWidget):
         self.setFixedWidth(target_width)
         text_width = max(80, target_width - self.card_padding - self.checkbox_column - 8)
         self.lbl_title.setFixedWidth(text_width)
+        if self.tag_scroll is not None:
+            self.tag_scroll.setFixedWidth(text_width)
+            widget = self.tag_scroll.widget()
+            if widget is not None:
+                widget.adjustSize()
 
         metrics = self.lbl_title.fontMetrics()
         rect = metrics.boundingRect(
