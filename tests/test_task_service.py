@@ -52,6 +52,36 @@ def test_task_service_queries_use_domain_rules(tmp_path, qapp):
     assert [task.id for task in service.get_archived_tasks()] == [historical_task.id]
 
 
+def test_task_service_reorders_within_quadrant(tmp_path, qapp):
+    service = make_service(tmp_path)
+    first = service.add_task("First")
+    second = service.add_task("Second")
+    third = service.add_task("Third")
+
+    service.move_task(third.id, "inbox", insert_index=0)
+
+    assert [task.id for task in service.get_visible_inbox_tasks()] == [
+        third.id,
+        first.id,
+        second.id,
+    ]
+
+
+def test_task_service_moves_to_quadrant_at_insert_index(tmp_path, qapp):
+    service = make_service(tmp_path)
+    first = service.add_task("First", quadrant="q1")
+    second = service.add_task("Second", quadrant="q1")
+    moved = service.add_task("Moved")
+
+    service.move_task(moved.id, "q1", insert_index=1)
+
+    assert [task.id for task in service.visible_tasks_for_quadrant("q1")] == [
+        first.id,
+        moved.id,
+        second.id,
+    ]
+
+
 def test_task_service_reminder_signal(tmp_path, qapp):
     service = make_service(tmp_path)
     task = service.add_task(
@@ -85,3 +115,47 @@ def test_task_service_loads_legacy_payload_without_id(tmp_path, qapp):
 
     assert service.get_task("legacy-id").id == "legacy-id"
     assert service.get_task("legacy-id").title == "Legacy task"
+
+
+def test_task_service_manages_tags_across_tasks(tmp_path, qapp):
+    service = make_service(tmp_path)
+    work = {"name": "Work", "color": "#2563EB"}
+    home = {"name": "Home", "color": "#059669"}
+    first = service.add_task("First", tags=[work])
+    second = service.add_task("Second", tags=[work, home])
+
+    service.rename_tag("Work", "Deep Work", "#7C3AED")
+
+    assert service.get_task(first.id).tags == [{"name": "Deep Work", "color": "#7C3AED"}]
+    assert service.get_task(second.id).tags == [
+        {"name": "Deep Work", "color": "#7C3AED"},
+        home,
+    ]
+
+    service.merge_tag("Deep Work", home)
+
+    assert service.get_task(first.id).tags == [home]
+    assert service.get_task(second.id).tags == [home]
+
+    service.delete_tag("Home")
+
+    assert service.get_task(first.id).tags == []
+    assert service.get_task(second.id).tags == []
+
+
+def test_task_service_prunes_tags_without_recent_references(tmp_path, qapp):
+    service = make_service(tmp_path)
+    active = {"name": "Active", "color": "#2563EB"}
+    recent = {"name": "Recent", "color": "#059669"}
+    old = {"name": "Old", "color": "#D97706"}
+    service.add_task("Active", tags=[active])
+    recent_task = service.add_task("Recent done", tags=[recent])
+    service.toggle_complete(recent_task.id, True)
+    old_task = service.add_task("Old done", tags=[old])
+    service.toggle_complete(old_task.id, True, completed_at="2000-01-01T10:00:00")
+
+    removed = service.prune_stale_tags()
+
+    assert removed == 1
+    assert service.get_task(old_task.id).tags == []
+    assert {tag["name"] for tag in service.get_all_tags()} == {"Active", "Recent"}
