@@ -24,6 +24,20 @@ def test_json_task_repository_saves_and_loads_tasks(tmp_path):
     assert loaded[task.id].reminder_minutes == 5
 
 
+def test_json_task_repository_persists_tags(tmp_path):
+    data_file = tmp_path / "tasks.json"
+    repository = JsonTaskRepository(data_file)
+    task = Task.create(
+        title="Tagged task",
+        tags=[{"name": "Work", "color": "#2563EB"}],
+    )
+
+    repository.save_all({task.id: task})
+    loaded = repository.load_all()
+
+    assert loaded[task.id].tags == [{"name": "Work", "color": "#2563EB"}]
+
+
 def test_json_task_repository_uses_outer_key_for_legacy_payload_without_id(tmp_path):
     data_file = tmp_path / "tasks.json"
     data_file.write_text(

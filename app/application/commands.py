@@ -13,6 +13,7 @@ class AddTask:
     has_time: bool = False
     reminder_minutes: Optional[int] = None
     quadrant: str = "inbox"
+    tags: Optional[list[dict[str, str]]] = None
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,7 @@ class UpdateTask:
     due_date: Optional[str]
     has_time: bool
     reminder_minutes: Optional[int]
+    tags: Optional[list[dict[str, str]]] = None
 
 
 @dataclass(frozen=True)

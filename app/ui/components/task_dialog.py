@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from PyQt6.QtCore import QDate, QDateTime, QPoint, QTime, Qt
+from PyQt6.QtCore import QDate, QDateTime, QPoint, QRect, QSize, QTime, Qt
 from PyQt6.QtGui import QColor, QIcon, QTextCharFormat
 from PyQt6.QtWidgets import (
     QCalendarWidget,
@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QLineEdit,
     QPushButton,
     QSpinBox,
@@ -33,9 +34,84 @@ from app.config import (
     STYLE_FORM_LABEL,
     STYLE_INPUT,
     STYLE_TIME_PICKER,
+    TAG_COLORS,
 )
 from app.models.task import Task
 from app.resources.strings import Strings
+
+
+class FlowLayout(QLayout):
+    def __init__(self, parent=None, margin: int = 0, spacing: int = 6):
+        super().__init__(parent)
+        self.item_list = []
+        self.setContentsMargins(margin, margin, margin, margin)
+        self.setSpacing(spacing)
+
+    def addItem(self, item) -> None:
+        self.item_list.append(item)
+
+    def count(self) -> int:
+        return len(self.item_list)
+
+    def itemAt(self, index: int):
+        if 0 <= index < len(self.item_list):
+            return self.item_list[index]
+        return None
+
+    def takeAt(self, index: int):
+        if 0 <= index < len(self.item_list):
+            return self.item_list.pop(index)
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return self._do_layout(QRect(0, 0, width, 0), test_only=True)
+
+    def setGeometry(self, rect: QRect) -> None:
+        super().setGeometry(rect)
+        self._do_layout(rect, test_only=False)
+
+    def sizeHint(self) -> QSize:
+        margins = self.contentsMargins()
+        width = sum(item.sizeHint().width() for item in self.item_list)
+        if self.item_list:
+            width += self.spacing() * (len(self.item_list) - 1)
+        height = max((item.sizeHint().height() for item in self.item_list), default=0)
+        return QSize(
+            width + margins.left() + margins.right(),
+            height + margins.top() + margins.bottom(),
+        )
+
+    def minimumSize(self) -> QSize:
+        size = QSize()
+        for item in self.item_list:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+        return size
+
+    def _do_layout(self, rect: QRect, test_only: bool) -> int:
+        x = rect.x()
+        y = rect.y()
+        line_height = 0
+        spacing = self.spacing()
+        for item in self.item_list:
+            next_x = x + item.sizeHint().width() + spacing
+            if next_x - spacing > rect.right() and line_height > 0:
+                x = rect.x()
+                y = y + line_height + spacing
+                next_x = x + item.sizeHint().width() + spacing
+                line_height = 0
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
+            x = next_x
+            line_height = max(line_height, item.sizeHint().height())
+        return y + line_height - rect.y()
 
 
 class ClickableDateTimeEdit(QDateTimeEdit):
@@ -212,9 +288,12 @@ class DateTimePickerPopup(QWidget):
 
 
 class TaskDialog(QDialog):
-    def __init__(self, parent=None, task: Task = None):
+    def __init__(self, parent=None, task: Task = None, all_tags: list[dict[str, str]] | None = None):
         super().__init__(parent)
         self.task = task
+        self.all_tags = self._normalize_tags(all_tags or [])
+        self.selected_tags = self._normalize_tags(task.tags if task else [])
+        self.show_tag_picker = task is None
         self.result_data = None
         self.reminders = [
             (Strings.get("remind_none"), None),
@@ -230,7 +309,7 @@ class TaskDialog(QDialog):
         self.setWindowTitle(Strings.get(title_key))
         self.setWindowIcon(QIcon(APP_LOGO_PATH))
         self.setStyleSheet(STYLE_DIALOG_CONTAINER)
-        self.resize(500, 560)
+        self.resize(520, 640)
         self.setup_ui()
         self.load_task()
 
@@ -294,6 +373,17 @@ class TaskDialog(QDialog):
         for text, value in self.reminders:
             self.reminder_combo.addItem(text, value)
         layout.addWidget(self.reminder_combo)
+
+        lbl_tags = QLabel("标签")
+        lbl_tags.setStyleSheet(STYLE_FORM_LABEL)
+        layout.addWidget(lbl_tags)
+
+        self.tag_container = QWidget()
+        self.tag_layout = QVBoxLayout(self.tag_container)
+        self.tag_layout.setContentsMargins(0, 0, 0, 0)
+        self.tag_layout.setSpacing(8)
+        layout.addWidget(self.tag_container)
+        self.refresh_tag_controls()
 
         layout.addStretch()
 
@@ -406,5 +496,187 @@ class TaskDialog(QDialog):
             "due_date": due_date,
             "has_time": has_time,
             "reminder_minutes": self.reminder_combo.currentData() if due_date else None,
+            "tags": self.selected_tags,
         }
         self.accept()
+
+    def refresh_tag_controls(self) -> None:
+        self._clear_layout(self.tag_layout)
+
+        selected_widget = QWidget()
+        selected_layout = FlowLayout(selected_widget, spacing=6)
+        for tag in self.selected_tags:
+            selected_layout.addWidget(
+                self._make_tag_button(tag, lambda checked=False, t=tag: self.remove_tag(t["name"]))
+            )
+
+        btn_expand = QPushButton("+")
+        btn_expand.setFixedSize(30, 26)
+        btn_expand.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_expand.setStyleSheet(self._tag_add_button_style())
+        btn_expand.clicked.connect(self.toggle_tag_picker)
+        selected_layout.addWidget(btn_expand)
+        self.tag_layout.addWidget(selected_widget)
+
+        if not self.show_tag_picker:
+            return
+
+        candidate_frame = QFrame()
+        candidate_frame.setObjectName("tagCandidateFrame")
+        candidate_frame.setStyleSheet(
+            """
+            QFrame#tagCandidateFrame {
+                background-color: #F6F7F9;
+                border: 1px solid #E5E7EB;
+                border-radius: 10px;
+            }
+            """
+        )
+        candidate_layout = QVBoxLayout(candidate_frame)
+        candidate_layout.setContentsMargins(10, 10, 10, 10)
+        candidate_layout.setSpacing(8)
+
+        available = [
+            tag for tag in self.all_tags if not self._has_selected_tag(tag["name"])
+        ]
+        if available:
+            available_widget = QWidget()
+            available_layout = FlowLayout(available_widget, spacing=6)
+            for tag in available:
+                available_layout.addWidget(
+                    self._make_tag_button(
+                        tag,
+                        lambda checked=False, t=tag: self.add_existing_tag(t),
+                    )
+                )
+            candidate_layout.addWidget(available_widget)
+
+        create_layout = QHBoxLayout()
+        create_layout.setContentsMargins(0, 0, 0, 0)
+        create_layout.setSpacing(6)
+        self.new_tag_edit = QLineEdit()
+        self.new_tag_edit.setPlaceholderText("新增标签")
+        self.new_tag_edit.setStyleSheet(STYLE_INPUT)
+        self.new_tag_edit.returnPressed.connect(self.add_new_tag)
+        create_layout.addWidget(self.new_tag_edit, 1)
+
+        btn_add_new = QPushButton("+")
+        btn_add_new.setFixedSize(34, 32)
+        btn_add_new.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_add_new.setStyleSheet(self._tag_add_button_style())
+        btn_add_new.clicked.connect(self.add_new_tag)
+        create_layout.addWidget(btn_add_new)
+        candidate_layout.addLayout(create_layout)
+        self.tag_layout.addWidget(candidate_frame)
+
+    def toggle_tag_picker(self) -> None:
+        self.show_tag_picker = not self.show_tag_picker
+        self.refresh_tag_controls()
+
+    def add_existing_tag(self, tag: dict[str, str]) -> None:
+        if not self._has_selected_tag(tag["name"]):
+            self.selected_tags.append({"name": tag["name"], "color": tag["color"]})
+        self.refresh_tag_controls()
+
+    def add_new_tag(self) -> None:
+        name = self.new_tag_edit.text().strip()
+        if not name:
+            return
+
+        existing = self._find_tag(name)
+        tag = existing or {"name": name, "color": self._next_tag_color()}
+        if not existing:
+            self.all_tags.append(tag)
+        if not self._has_selected_tag(name):
+            self.selected_tags.append({"name": tag["name"], "color": tag["color"]})
+        self.show_tag_picker = True
+        self.refresh_tag_controls()
+
+    def remove_tag(self, name: str) -> None:
+        self.selected_tags = [
+            tag for tag in self.selected_tags if tag["name"].casefold() != name.casefold()
+        ]
+        self.refresh_tag_controls()
+
+    def _find_tag(self, name: str) -> dict[str, str] | None:
+        key = name.casefold()
+        for tag in [*self.all_tags, *self.selected_tags]:
+            if tag["name"].casefold() == key:
+                return tag
+        return None
+
+    def _has_selected_tag(self, name: str) -> bool:
+        return any(tag["name"].casefold() == name.casefold() for tag in self.selected_tags)
+
+    def _next_tag_color(self) -> str:
+        names = {tag["name"].casefold() for tag in self.all_tags}
+        names.update(tag["name"].casefold() for tag in self.selected_tags)
+        return TAG_COLORS[len(names) % len(TAG_COLORS)]
+
+    def _normalize_tags(self, tags: list[dict[str, str]]) -> list[dict[str, str]]:
+        normalized = []
+        seen = set()
+        for tag in tags:
+            if not isinstance(tag, dict):
+                continue
+            name = str(tag.get("name", "")).strip()
+            color = str(tag.get("color", "#6B7280")).strip() or "#6B7280"
+            key = name.casefold()
+            if not name or key in seen:
+                continue
+            seen.add(key)
+            normalized.append({"name": name, "color": color})
+        return normalized
+
+    def _make_tag_button(self, tag: dict[str, str], handler) -> QPushButton:
+        display_name = self._tag_display_name(tag["name"])
+        button = QPushButton(display_name)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        if display_name != tag["name"]:
+            button.setToolTip(tag["name"])
+        button.setStyleSheet(self._tag_button_style(tag["color"]))
+        button.clicked.connect(handler)
+        button.adjustSize()
+        button.setFixedSize(button.sizeHint())
+        return button
+
+    def _tag_display_name(self, name: str) -> str:
+        return name if len(name) <= 4 else name[:4]
+
+    def _tag_button_style(self, color: str) -> str:
+        return f"""
+            QPushButton {{
+                background-color: {color};
+                color: white;
+                border: none;
+                border-radius: 10px;
+                padding: 4px 9px;
+                font-size: 12px;
+                font-weight: 700;
+            }}
+        """
+
+    def _tag_add_button_style(self) -> str:
+        return """
+            QPushButton {
+                background-color: #F3F4F6;
+                color: #4B5563;
+                border: 1px solid #E5E7EB;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: 800;
+            }
+            QPushButton:hover {
+                background-color: #E5E7EB;
+            }
+        """
+
+    def _clear_layout(self, layout) -> None:
+        while layout.count():
+            item = layout.takeAt(0)
+            child_layout = item.layout()
+            widget = item.widget()
+            if child_layout is not None:
+                self._clear_layout(child_layout)
+            if widget is not None:
+                widget.deleteLater()

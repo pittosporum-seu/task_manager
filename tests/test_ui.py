@@ -1,8 +1,12 @@
+from PyQt6.QtWidgets import QFrame, QPushButton
+
 from app.services.task_service import TaskService
+from app.ui.components.task_card import DragScrollArea, TagPill, TaskCardWidget
 from app.ui.components.task_dialog import DateTimePickerPopup, TaskDialog
 from app.ui.views.archive_dialog import ArchiveDialog
 from app.ui.views.matrix import MatrixView
 from app.ui.views.sidebar import SidebarView
+from app.ui.views.tag_manager_dialog import TagManagerDialog
 
 
 def make_service(tmp_path):
@@ -45,6 +49,57 @@ def test_ui_smoke_workflow(tmp_path, qapp):
     sidebar.close()
 
 
+def test_tag_manager_dialog_lists_tags_and_sidebar_has_entry(tmp_path, qapp):
+    service = make_service(tmp_path)
+    service.add_task("Tagged", tags=[{"name": "Work", "color": "#2563EB"}])
+
+    dialog = TagManagerDialog(service)
+    assert dialog.list_widget.count() == 1
+
+    sidebar = SidebarView(service)
+    button_texts = [button.text() for button in sidebar.findChildren(QPushButton)]
+    assert "标签管理" in button_texts
+
+    sidebar.close()
+    dialog.close()
+
+
+def test_matrix_filters_by_double_clicked_tag(tmp_path, qapp):
+    service = make_service(tmp_path)
+    work = {"name": "Work", "color": "#2563EB"}
+    home = {"name": "Home", "color": "#059669"}
+    service.add_task("Work task", quadrant="q1", tags=[work])
+    service.add_task("Home task", quadrant="q1", tags=[home])
+
+    matrix = MatrixView(service)
+    matrix.refresh()
+    assert matrix.lists["q1"].count() == 2
+
+    matrix.filter_by_tag("Work")
+    assert matrix.lists["q1"].count() == 1
+
+    matrix.filter_by_tag("Work")
+    assert matrix.lists["q1"].count() == 2
+    assert service.get_all_tags() == [home, work]
+
+    matrix.close()
+
+
+def test_matrix_filter_header_truncates_long_tag(tmp_path, qapp):
+    service = make_service(tmp_path)
+    long_tag = {"name": "ImportantLongTagName", "color": "#2563EB"}
+    service.add_task("Tagged task", quadrant="q1", tags=[long_tag])
+
+    matrix = MatrixView(service)
+    matrix.filter_by_tag(long_tag["name"])
+
+    assert matrix.headers["q1"].text().endswith("#Importan...")
+    assert long_tag["name"] not in matrix.headers["q1"].text()
+    assert matrix.headers["q1"].toolTip() == long_tag["name"]
+
+    matrix.close()
+
+
 def test_new_task_dialog_due_date_defaults(qapp):
     dialog = TaskDialog()
 
@@ -72,5 +127,66 @@ def test_date_time_picker_shows_time_panel_only_when_needed(qapp):
     picker_without_time = DateTimePickerPopup(dialog, include_time=False)
     assert picker_without_time.time_panel.isHidden()
     picker_without_time.close()
+
+    dialog.close()
+
+
+def test_tag_widgets_truncate_long_names_and_group_candidates(qapp):
+    long_tag = {"name": "ImportantLong", "color": "#2563EB"}
+    short_tag = {"name": "Home", "color": "#059669"}
+    dialog = TaskDialog(all_tags=[long_tag, short_tag])
+
+    long_button = next(
+        button for button in dialog.findChildren(QPushButton) if button.toolTip() == "ImportantLong"
+    )
+    assert long_button.text() == "Impo"
+    candidate_frame = dialog.findChild(QFrame, "tagCandidateFrame")
+    assert candidate_frame is not None
+
+    pill = TagPill(long_tag)
+    assert pill.text() == "Impo"
+    assert pill.toolTip() == "ImportantLong"
+
+    short_pill = TagPill(short_tag)
+    assert short_pill.text() == "Home"
+    assert short_pill.toolTip() == ""
+
+    card = TaskCardWidget(
+        task=type("TaskStub", (), {
+            "id": "1",
+            "title": "Tagged",
+            "completed": False,
+            "due_date": None,
+            "reminder_minutes": None,
+            "tags": [long_tag, short_tag],
+        })()
+    )
+    assert card.findChild(DragScrollArea) is not None
+
+    card.close()
+    dialog.close()
+
+
+def test_edit_dialog_shows_selected_and_candidate_tags(qapp):
+    selected = {"name": "Work", "color": "#2563EB"}
+    candidate = {"name": "Home", "color": "#059669"}
+    task = type("TaskStub", (), {
+        "id": "1",
+        "title": "Tagged",
+        "description": "",
+        "due_date": None,
+        "has_time": False,
+        "reminder_minutes": None,
+        "tags": [selected],
+    })()
+    dialog = TaskDialog(task=task, all_tags=[selected, candidate])
+
+    assert any(button.text() == "Work" and button.isVisibleTo(dialog) for button in dialog.findChildren(QPushButton))
+    assert not any(button.text() == "Home" and button.isVisibleTo(dialog) for button in dialog.findChildren(QPushButton))
+
+    dialog.toggle_tag_picker()
+
+    assert any(button.text() == "Home" and button.isVisibleTo(dialog) for button in dialog.findChildren(QPushButton))
+    assert dialog.tag_container.sizeHint().height() > 0
 
     dialog.close()

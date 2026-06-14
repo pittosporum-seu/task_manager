@@ -1,5 +1,5 @@
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -19,6 +19,7 @@ class Task:
     completed: bool = False
     completed_at: Optional[str] = None
     sort_order: int = 0
+    tags: list[dict[str, str]] = field(default_factory=list)
 
     @classmethod
     def create(
@@ -29,6 +30,7 @@ class Task:
         due_date: Optional[str] = None,
         has_time: bool = False,
         reminder_minutes: Optional[int] = None,
+        tags: Optional[list[dict[str, str]]] = None,
     ) -> "Task":
         return cls(
             id=str(uuid.uuid4()),
@@ -39,6 +41,7 @@ class Task:
             due_date=due_date,
             has_time=has_time,
             reminder_minutes=reminder_minutes,
+            tags=tags or [],
         )
 
     @classmethod
@@ -57,7 +60,33 @@ class Task:
             "completed": False,
             "completed_at": None,
             "sort_order": 0,
+            "tags": [],
         }
         fields = cls.__dataclass_fields__.keys()
         data = {**defaults, **{k: v for k, v in payload.items() if k in fields}}
+        data["tags"] = cls._normalize_tags(data.get("tags"))
         return cls(**data)
+
+    @staticmethod
+    def _normalize_tags(value: Any) -> list[dict[str, str]]:
+        if not isinstance(value, list):
+            return []
+
+        normalized = []
+        seen = set()
+        for item in value:
+            if isinstance(item, str):
+                name = item.strip()
+                color = "#6B7280"
+            elif isinstance(item, dict):
+                name = str(item.get("name", "")).strip()
+                color = str(item.get("color", "#6B7280")).strip() or "#6B7280"
+            else:
+                continue
+
+            key = name.casefold()
+            if not name or key in seen:
+                continue
+            seen.add(key)
+            normalized.append({"name": name, "color": color})
+        return normalized

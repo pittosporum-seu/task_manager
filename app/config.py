@@ -42,6 +42,19 @@ COLORS = {
     "blue_soft": "#EFF6FF",
 }
 
+TAG_COLORS = [
+    "#2563EB",
+    "#059669",
+    "#D97706",
+    "#DB2777",
+    "#7C3AED",
+    "#0891B2",
+    "#65A30D",
+    "#DC2626",
+    "#4F46E5",
+    "#0F766E",
+]
+
 _QUADRANT_PRESENTATION = {
     "q1": {"row": 0, "col": 0, "bg": "#FEF2F2", "text": "#7F1D1D"},
     "q2": {"row": 0, "col": 1, "bg": "#EFF6FF", "text": "#1E3A8A"},

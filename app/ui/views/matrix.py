@@ -13,10 +13,14 @@ from app.ui.components.task_dialog import TaskDialog
 
 
 class MatrixView(QWidget):
+    HEADER_TAG_MAX_LENGTH = 8
+
     def __init__(self, service: TaskService, parent=None):
         super().__init__(parent)
         self.service = service
         self.lists: Dict[str, DraggableListWidget] = {}
+        self.active_tag_filter = None
+        self.headers: Dict[str, QLabel] = {}
         self.setup_ui()
 
     def setup_ui(self) -> None:
@@ -33,6 +37,7 @@ class MatrixView(QWidget):
 
             header = QLabel(conf["title"])
             header.setStyleSheet(style_quadrant_header(conf["text"]))
+            self.headers[conf["id"]] = header
             v_layout.addWidget(header)
 
             list_widget = DraggableListWidget(conf["id"], self.service)
@@ -50,7 +55,7 @@ class MatrixView(QWidget):
         for list_widget in self.lists.values():
             list_widget.clear()
 
-        for task in self.service.get_visible_matrix_tasks():
+        for task in self.filtered_matrix_tasks():
             list_widget = self.lists.get(task.quadrant)
             if list_widget is None:
                 continue
@@ -58,11 +63,16 @@ class MatrixView(QWidget):
             item = QListWidgetItem(list_widget)
             item.setData(Qt.ItemDataRole.UserRole, task.id)
 
-            widget = TaskCardWidget(task, on_status_change=self.service.toggle_complete)
+            widget = TaskCardWidget(
+                task,
+                on_status_change=self.service.toggle_complete,
+                on_tag_double_clicked=self.filter_by_tag,
+            )
             current_width = self.card_width(list_widget, fallback=200)
             height = widget.update_preferred_height(current_width)
             item.setSizeHint(QSize(current_width, height))
             list_widget.setItemWidget(item, widget)
+        self.update_headers()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -103,7 +113,7 @@ class MatrixView(QWidget):
         menu.exec(list_widget.mapToGlobal(pos))
 
     def open_task_dialog(self, task) -> None:
-        dialog = TaskDialog(self, task)
+        dialog = TaskDialog(self, task, self.service.get_all_tags())
         if dialog.exec():
             data = dialog.result_data
             self.service.update_task(
@@ -113,4 +123,38 @@ class MatrixView(QWidget):
                 data["due_date"],
                 data["has_time"],
                 data["reminder_minutes"],
+                data["tags"],
             )
+
+    def filtered_matrix_tasks(self):
+        tasks = self.service.get_visible_matrix_tasks()
+        if not self.active_tag_filter:
+            return tasks
+        key = self.active_tag_filter.casefold()
+        return [
+            task
+            for task in tasks
+            if any(tag["name"].casefold() == key for tag in task.tags)
+        ]
+
+    def filter_by_tag(self, tag_name: str) -> None:
+        if self.active_tag_filter == tag_name:
+            self.active_tag_filter = None
+        else:
+            self.active_tag_filter = tag_name
+        self.refresh()
+
+    def update_headers(self) -> None:
+        for conf in QUADRANT_CONFIGS:
+            title = conf["title"]
+            if self.active_tag_filter:
+                title = f"{title} #{self._header_tag_text(self.active_tag_filter)}"
+                self.headers[conf["id"]].setToolTip(self.active_tag_filter)
+            else:
+                self.headers[conf["id"]].setToolTip("")
+            self.headers[conf["id"]].setText(title)
+
+    def _header_tag_text(self, tag_name: str) -> str:
+        if len(tag_name) <= self.HEADER_TAG_MAX_LENGTH:
+            return tag_name
+        return f"{tag_name[:self.HEADER_TAG_MAX_LENGTH]}..."
