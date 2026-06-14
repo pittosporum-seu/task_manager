@@ -69,6 +69,21 @@ def test_matrix_filters_by_double_clicked_tag(tmp_path, qapp):
     matrix.close()
 
 
+def test_matrix_filter_header_truncates_long_tag(tmp_path, qapp):
+    service = make_service(tmp_path)
+    long_tag = {"name": "ImportantLongTagName", "color": "#2563EB"}
+    service.add_task("Tagged task", quadrant="q1", tags=[long_tag])
+
+    matrix = MatrixView(service)
+    matrix.filter_by_tag(long_tag["name"])
+
+    assert matrix.headers["q1"].text().endswith("#Importan...")
+    assert long_tag["name"] not in matrix.headers["q1"].text()
+    assert matrix.headers["q1"].toolTip() == long_tag["name"]
+
+    matrix.close()
+
+
 def test_new_task_dialog_due_date_defaults(qapp):
     dialog = TaskDialog()
 

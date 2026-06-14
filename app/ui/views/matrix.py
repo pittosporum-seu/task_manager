@@ -13,6 +13,8 @@ from app.ui.components.task_dialog import TaskDialog
 
 
 class MatrixView(QWidget):
+    HEADER_TAG_MAX_LENGTH = 8
+
     def __init__(self, service: TaskService, parent=None):
         super().__init__(parent)
         self.service = service
@@ -146,5 +148,13 @@ class MatrixView(QWidget):
         for conf in QUADRANT_CONFIGS:
             title = conf["title"]
             if self.active_tag_filter:
-                title = f"{title} #{self.active_tag_filter}"
+                title = f"{title} #{self._header_tag_text(self.active_tag_filter)}"
+                self.headers[conf["id"]].setToolTip(self.active_tag_filter)
+            else:
+                self.headers[conf["id"]].setToolTip("")
             self.headers[conf["id"]].setText(title)
+
+    def _header_tag_text(self, tag_name: str) -> str:
+        if len(tag_name) <= self.HEADER_TAG_MAX_LENGTH:
+            return tag_name
+        return f"{tag_name[:self.HEADER_TAG_MAX_LENGTH]}..."
