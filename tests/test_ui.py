@@ -6,6 +6,7 @@ from app.ui.components.task_dialog import DateTimePickerPopup, TaskDialog
 from app.ui.views.archive_dialog import ArchiveDialog
 from app.ui.views.matrix import MatrixView
 from app.ui.views.sidebar import SidebarView
+from app.ui.views.tag_manager_dialog import TagManagerDialog
 
 
 def make_service(tmp_path):
@@ -46,6 +47,21 @@ def test_ui_smoke_workflow(tmp_path, qapp):
     archive.close()
     matrix.close()
     sidebar.close()
+
+
+def test_tag_manager_dialog_lists_tags_and_sidebar_has_entry(tmp_path, qapp):
+    service = make_service(tmp_path)
+    service.add_task("Tagged", tags=[{"name": "Work", "color": "#2563EB"}])
+
+    dialog = TagManagerDialog(service)
+    assert dialog.list_widget.count() == 1
+
+    sidebar = SidebarView(service)
+    button_texts = [button.text() for button in sidebar.findChildren(QPushButton)]
+    assert "标签管理" in button_texts
+
+    sidebar.close()
+    dialog.close()
 
 
 def test_matrix_filters_by_double_clicked_tag(tmp_path, qapp):
