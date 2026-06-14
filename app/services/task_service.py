@@ -64,6 +64,7 @@ class TaskService(QObject):
         has_time: bool = False,
         reminder_minutes: Optional[int] = None,
         quadrant: str = "inbox",
+        tags: Optional[list[dict[str, str]]] = None,
     ) -> Task:
         result = self._dispatch(
             AddTask(
@@ -73,6 +74,7 @@ class TaskService(QObject):
                 has_time=has_time,
                 reminder_minutes=reminder_minutes,
                 quadrant=quadrant,
+                tags=tags,
             )
         )
         task = self.get_task(result.task_id or "")
@@ -88,6 +90,7 @@ class TaskService(QObject):
         due_date: Optional[str],
         has_time: bool,
         reminder_minutes: Optional[int],
+        tags: Optional[list[dict[str, str]]] = None,
     ) -> None:
         self._dispatch(
             UpdateTask(
@@ -97,6 +100,7 @@ class TaskService(QObject):
                 due_date=due_date,
                 has_time=has_time,
                 reminder_minutes=reminder_minutes,
+                tags=tags,
             )
         )
 
@@ -130,6 +134,22 @@ class TaskService(QObject):
 
     def get_archived_tasks(self) -> list[Task]:
         return self.application.get_archived_tasks()
+
+    def visible_tasks_for_quadrant(self, quadrant: str) -> list[Task]:
+        return self.application.visible_tasks_for_quadrant(quadrant)
+
+    def get_all_tags(self) -> list[dict[str, str]]:
+        tags_by_name: dict[str, dict[str, str]] = {}
+        for task in self.tasks.values():
+            for tag in task.tags:
+                name = tag.get("name", "").strip()
+                if not name:
+                    continue
+                tags_by_name.setdefault(
+                    name.casefold(),
+                    {"name": name, "color": tag.get("color", "#6B7280")},
+                )
+        return sorted(tags_by_name.values(), key=lambda tag: tag["name"].casefold())
 
     def check_reminders(self) -> None:
         self._dispatch(CheckReminders())

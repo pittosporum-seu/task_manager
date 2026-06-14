@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from PyQt6.QtCore import QPoint, Qt
+from PyQt6.QtCore import QPoint, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QCursor
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -24,6 +24,32 @@ from app.config import (
 )
 from app.models.task import Task
 from app.resources.strings import Strings
+
+
+class TagPill(QLabel):
+    double_clicked = pyqtSignal(str)
+
+    def __init__(self, tag: dict[str, str]):
+        super().__init__(tag["name"])
+        self.tag = tag
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setStyleSheet(
+            f"""
+            QLabel {{
+                background-color: {tag.get("color", "#6B7280")};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 2px 7px;
+                font-size: 10px;
+                font-weight: 700;
+            }}
+            """
+        )
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        self.double_clicked.emit(self.tag["name"])
+        event.accept()
 
 
 class TaskInfoPopup(QWidget):
@@ -81,11 +107,13 @@ class TaskInfoPopup(QWidget):
 
 
 class TaskCardWidget(QWidget):
-    def __init__(self, task: Task, on_status_change=None):
+    def __init__(self, task: Task, on_status_change=None, on_tag_double_clicked=None):
         super().__init__()
         self.task = task
         self.popup = None
         self.on_status_change = on_status_change
+        self.on_tag_double_clicked = on_tag_double_clicked
+        self.has_tags = bool(task.tags)
         self.has_bottom_info = bool(task.due_date or task.reminder_minutes is not None)
         self.shadow_margin = 4
         self.card_padding = 24
@@ -134,6 +162,17 @@ class TaskCardWidget(QWidget):
 
         content_layout.addLayout(top_layout)
         self.update_visual_style(task.completed)
+
+        if self.has_tags:
+            tag_layout = QHBoxLayout()
+            tag_layout.setSpacing(5)
+            tag_layout.setContentsMargins(self.checkbox_column, 2, 0, 2)
+            for tag in task.tags:
+                pill = TagPill(tag)
+                pill.double_clicked.connect(self.handle_tag_double_click)
+                tag_layout.addWidget(pill)
+            tag_layout.addStretch()
+            content_layout.addLayout(tag_layout)
 
         if self.has_bottom_info:
             info_layout = QHBoxLayout()
@@ -213,7 +252,13 @@ class TaskCardWidget(QWidget):
         total_height = (self.shadow_margin * 2) + self.card_padding + rect.height()
         if self.has_bottom_info:
             total_height += self.bottom_info_height + self.spacing
+        if self.has_tags:
+            total_height += 24 + self.spacing
         return max(54, total_height)
+
+    def handle_tag_double_click(self, tag_name: str) -> None:
+        if self.on_tag_double_clicked:
+            self.on_tag_double_clicked(tag_name)
 
     def enterEvent(self, event):
         if not self.popup and (self.task.description or "").strip():

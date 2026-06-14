@@ -128,7 +128,7 @@ class SidebarView(QWidget):
         menu.exec(self.inbox_list.mapToGlobal(pos))
 
     def open_task_dialog(self, task=None) -> None:
-        dialog = TaskDialog(self, task)
+        dialog = TaskDialog(self, task, self.service.get_all_tags())
         if dialog.exec():
             data = dialog.result_data
             if task:
@@ -139,6 +139,7 @@ class SidebarView(QWidget):
                     data["due_date"],
                     data["has_time"],
                     data["reminder_minutes"],
+                    data["tags"],
                 )
             else:
                 self.service.add_task(
@@ -147,6 +148,7 @@ class SidebarView(QWidget):
                     data["due_date"],
                     data["has_time"],
                     data["reminder_minutes"],
+                    tags=data["tags"],
                 )
 
     def open_archive(self) -> None:

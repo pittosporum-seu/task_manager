@@ -135,6 +135,7 @@ class TaskApplication:
             has_time=command.has_time,
             reminder_minutes=command.reminder_minutes,
             quadrant=command.quadrant,
+            tags=self._normalize_tags(command.tags),
         )
         task.sort_order = self.next_sort_order(command.quadrant)
         self.tasks[task.id] = task
@@ -167,6 +168,8 @@ class TaskApplication:
         task.due_date = command.due_date
         task.has_time = command.has_time
         task.reminder_minutes = command.reminder_minutes
+        if command.tags is not None:
+            task.tags = self._normalize_tags(command.tags)
         if reminder_changed:
             task.reminder_sent = False
 
@@ -302,6 +305,7 @@ class TaskApplication:
                     "due_date": command.due_date,
                     "has_time": command.has_time,
                     "reminder_minutes": command.reminder_minutes,
+                    "tags": self._normalize_tags(command.tags),
                 },
             },
         )
@@ -332,6 +336,8 @@ class TaskApplication:
                 "reminder_minutes": command.reminder_minutes,
             }
         )
+        if command.tags is not None:
+            after["tags"] = self._normalize_tags(command.tags)
         if (
             before["due_date"] != command.due_date
             or before["reminder_minutes"] != command.reminder_minutes
@@ -528,6 +534,24 @@ class TaskApplication:
                     task_id=task_id,
                 )
         return None
+
+    def _normalize_tags(self, tags: list[dict[str, str]] | None) -> list[dict[str, str]]:
+        if not tags:
+            return []
+
+        normalized = []
+        seen = set()
+        for tag in tags:
+            if not isinstance(tag, dict):
+                continue
+            name = str(tag.get("name", "")).strip()
+            color = str(tag.get("color", "#6B7280")).strip() or "#6B7280"
+            key = name.casefold()
+            if not name or key in seen:
+                continue
+            seen.add(key)
+            normalized.append({"name": name, "color": color})
+        return normalized
 
     def _validate_completed_at(
         self,

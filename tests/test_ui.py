@@ -45,6 +45,27 @@ def test_ui_smoke_workflow(tmp_path, qapp):
     sidebar.close()
 
 
+def test_matrix_filters_by_double_clicked_tag(tmp_path, qapp):
+    service = make_service(tmp_path)
+    work = {"name": "Work", "color": "#2563EB"}
+    home = {"name": "Home", "color": "#059669"}
+    service.add_task("Work task", quadrant="q1", tags=[work])
+    service.add_task("Home task", quadrant="q1", tags=[home])
+
+    matrix = MatrixView(service)
+    matrix.refresh()
+    assert matrix.lists["q1"].count() == 2
+
+    matrix.filter_by_tag("Work")
+    assert matrix.lists["q1"].count() == 1
+
+    matrix.filter_by_tag("Work")
+    assert matrix.lists["q1"].count() == 2
+    assert service.get_all_tags() == [home, work]
+
+    matrix.close()
+
+
 def test_new_task_dialog_due_date_defaults(qapp):
     dialog = TaskDialog()
 
