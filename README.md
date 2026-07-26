@@ -8,6 +8,10 @@
 
 ---
 
+## 截图
+
+![四象限主视图](screenshots/screenshot_matrix.png)
+
 ## 功能
 
 - **四象限矩阵**：收件箱 + Q1~Q4 视图，拖拽切换象限
