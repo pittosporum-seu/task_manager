@@ -1,5 +1,106 @@
 # Quadrant Task Manager
 
+基于 PyQt6 的四象限任务管理器，支持 GUI 和 CLI 双入口。
+
+[![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://python.org)
+[![PyQt6](https://img.shields.io/badge/GUI-PyQt6-green.svg)](https://www.riverbankcomputing.com/software/pyqt/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+---
+
+## 功能
+
+- **四象限矩阵**：收件箱 + Q1~Q4 视图，拖拽切换象限
+- **标签系统**：任务打标、按标签筛选、标签管理（重命名/合并/删除/清理）
+- **排序规则**：未完成优先 → 手动位置 → 截止时间次级排序
+- **时间管理**：截止日期 + 具体时间 + 提醒（可配置提前分钟数）
+- **归档**：已完成任务当天保留在主视图，历史任务自动归档，支持恢复
+- **CLI**：全功能命令行，JSON 输出，审计日志，dry-run 安全预演
+- **国际化**：中 / English，一行配置切换
+- **打包**：PyInstaller 一键构建 Windows 可执行文件
+
+## 快速开始
+
+```bash
+git clone https://github.com/pittosporum-seu/task_manager.git
+cd task_manager
+
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+pip install -r requirements.txt
+
+python main.py
+```
+
+任务数据存储在 `data/tasks.json`（已 gitignore）。
+
+## CLI 示例
+
+```bash
+# 查询
+python -m app.cli list --view matrix
+python -m app.cli list --tag Work
+python -m app.cli get <task-id>
+
+# 创建 & 管理
+python -m app.cli add "写周报" --quadrant q1 --tag Work --due-date 2026-06-09T09:30
+python -m app.cli move <task-id> q2
+python -m app.cli complete <task-id>
+
+# 标签管理
+python -m app.cli tags
+python -m app.cli tag-merge "SourceTag" "TargetTag" --confirm
+
+# 安全预演（不实际执行）
+python -m app.cli delete <task-id> --dry-run
+```
+
+完整 CLI 文档见 [docs/architecture.md](docs/architecture.md)。
+
+## 架构
+
+```
+app/
+├── domain/           # 领域规则（排序、象限校验）
+├── models/           # 数据模型（Task dataclass）
+├── application/      # 应用层（命令处理）
+├── infrastructure/   # 持久化（JSON 仓库、标签目录）
+├── services/         # 服务层（TaskService 协调）
+├── ui/               # PyQt6 GUI
+│   ├── components/   #   任务卡片、对话框
+│   └── views/        #   矩阵视图、标签管理
+└── resources/        # 多语言字符串、SVG 图标
+```
+
+## 测试
+
+```bash
+pip install -r requirements-dev.txt
+pytest            # 7 个测试模块，含 UI smoke test（offscreen 模式）
+ruff check .      # lint
+```
+
+## 打包
+
+```powershell
+pip install -r requirements-build.txt
+.\scripts\build_exe.ps1
+# 产物: outputs/TaskManager-v0.1.0-win64.zip
+```
+
+## 语言切换
+
+`app/config.py` 中修改：
+
+```python
+LANGUAGE = "cn"   # 可选 "cn" / "en"
+```
+
+## License
+
+[MIT](LICENSE)
+# Quadrant Task Manager
+
 一个基于 PyQt6 的四象限任务管理器。项目来自 Gemini 分享页中的设计讨论整理，已合并为一套完整、可运行、可继续维护的代码结构。
 
 ## 功能
