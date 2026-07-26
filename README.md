@@ -27,6 +27,66 @@ python main.py
 
 归档口径：归档窗口展示“历史完成记录”，即不包含今天刚完成、仍保留在主视图里的任务。
 
+## CLI
+
+命令行入口统一输出 JSON，默认读写 `data/tasks.json`，写命令会记录审计日志到同目录的 `audit.log.jsonl`。
+
+全局参数：
+
+```bash
+python -m app.cli --file data/tasks.json --pretty <command>
+python -m app.cli --file data/tasks.json --audit-file data/audit.log.jsonl <command>
+python -m app.cli --source cli --request-id req-1 --actor user <command>
+```
+
+查询任务：
+
+```bash
+python -m app.cli list --view all
+python -m app.cli list --view inbox
+python -m app.cli list --view matrix
+python -m app.cli list --view archive
+python -m app.cli list --tag Work
+python -m app.cli get <task-id>
+```
+
+管理任务：
+
+```bash
+python -m app.cli add "写周报" --description "整理本周进展" --quadrant q1
+python -m app.cli add "写周报" --tag Work --tag Weekly
+python -m app.cli update <task-id> --title "更新标题" --clear-due-date
+python -m app.cli move <task-id> q2
+python -m app.cli complete <task-id>
+python -m app.cli reopen <task-id>
+python -m app.cli delete <task-id> --dry-run
+python -m app.cli delete <task-id> --confirm
+```
+
+时间和提醒：
+
+```bash
+python -m app.cli add "开会" --due-date 2026-06-09T09:30 --has-time --reminder-minutes 15
+python -m app.cli check-reminders --now 2026-06-09T09:15:00
+```
+
+标签：
+
+```bash
+python -m app.cli tags
+python -m app.cli add "处理合同" --tag Work --tag Legal
+python -m app.cli list --tag Legal
+```
+
+`tags` 会列出所有标签及引用任务数量；`add --tag` 可重复使用，已有标签会复用原颜色，新标签会自动分配颜色。
+
+安全预演：
+
+```bash
+python -m app.cli add "预演任务" --dry-run
+python -m app.cli --source future_ai delete <task-id> --dry-run
+```
+
 ## 测试
 
 ```bash

@@ -181,3 +181,53 @@ def test_cli_future_ai_delete_must_be_dry_run(tmp_path, capsys):
 
     assert exit_code == 0
     assert payload["would_change"]
+
+
+def test_cli_adds_lists_and_filters_tags(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    _, first_payload = run_cli(
+        capsys,
+        data_file,
+        "add",
+        "Tagged task",
+        "--tag",
+        "Work",
+        "--tag",
+        "Deep",
+    )
+    first_id = first_payload["task_id"]
+    _, second_payload = run_cli(capsys, data_file, "add", "Other task", "--tag", "Home")
+    second_id = second_payload["task_id"]
+
+    exit_code, payload = run_cli(capsys, data_file, "tags")
+
+    assert exit_code == 0
+    assert [(tag["name"], tag["count"]) for tag in payload["data"]["tags"]] == [
+        ("Deep", 1),
+        ("Home", 1),
+        ("Work", 1),
+    ]
+
+    exit_code, payload = run_cli(capsys, data_file, "list", "--tag", "Work")
+
+    assert exit_code == 0
+    assert [task["id"] for task in payload["data"]["tasks"]] == [first_id]
+    assert payload["data"]["tag"] == "Work"
+
+    exit_code, payload = run_cli(capsys, data_file, "list", "--tag", "Home")
+
+    assert exit_code == 0
+    assert [task["id"] for task in payload["data"]["tasks"]] == [second_id]
+
+
+def test_cli_reuses_existing_tag_color(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    _, first_payload = run_cli(capsys, data_file, "add", "First", "--tag", "Work")
+    first_id = first_payload["task_id"]
+    _, second_payload = run_cli(capsys, data_file, "add", "Second", "--tag", "Work")
+    second_id = second_payload["task_id"]
+
+    _, first = run_cli(capsys, data_file, "get", first_id)
+    _, second = run_cli(capsys, data_file, "get", second_id)
+
+    assert first["data"]["task"]["tags"][0]["color"] == second["data"]["task"]["tags"][0]["color"]

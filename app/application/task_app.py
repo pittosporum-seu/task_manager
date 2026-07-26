@@ -52,6 +52,7 @@ class TaskApplication:
         self.event_bus = event_bus or EventBus()
         self.audit_log = audit_log
         self.tasks = self.repository.load_all()
+        self.normalize_sort_orders()
 
     def dispatch(
         self,
@@ -97,6 +98,7 @@ class TaskApplication:
 
     def reload(self) -> None:
         self.tasks = self.repository.load_all()
+        self.normalize_sort_orders()
 
     def save(self) -> None:
         self.repository.save_all(self.tasks)
@@ -133,7 +135,9 @@ class TaskApplication:
             has_time=command.has_time,
             reminder_minutes=command.reminder_minutes,
             quadrant=command.quadrant,
+            tags=self._normalize_tags(command.tags),
         )
+        task.sort_order = self.next_sort_order(command.quadrant)
         self.tasks[task.id] = task
         return self._changed_result("add", task.id, "Task added", {"task": asdict(task)})
 
@@ -164,6 +168,8 @@ class TaskApplication:
         task.due_date = command.due_date
         task.has_time = command.has_time
         task.reminder_minutes = command.reminder_minutes
+        if command.tags is not None:
+            task.tags = self._normalize_tags(command.tags)
         if reminder_changed:
             task.reminder_sent = False
 
@@ -182,10 +188,27 @@ class TaskApplication:
             return CommandResult(ok=False, message="Task not found", task_id=command.task_id)
         if not is_valid_quadrant(command.new_quadrant):
             return CommandResult(ok=False, message="Invalid quadrant", task_id=task.id)
-        if task.quadrant == command.new_quadrant:
+        old_quadrant = task.quadrant
+        old_index = self.visible_index(task.id, old_quadrant)
+        insert_index = command.insert_index
+        if (
+            old_quadrant == command.new_quadrant
+            and command.insert_index is not None
+            and old_index is not None
+        ):
+            insert_index = (
+                command.insert_index - 1 if command.insert_index > old_index else command.insert_index
+            )
+            if insert_index == old_index:
+                return CommandResult(ok=True, message="Task already in position", task_id=task.id)
+        elif task.quadrant == command.new_quadrant:
             return CommandResult(ok=True, message="Task already in quadrant", task_id=task.id)
 
         task.quadrant = command.new_quadrant
+        if command.insert_index is None:
+            task.sort_order = self.next_sort_order(command.new_quadrant)
+        else:
+            self.reorder_visible_tasks(command.new_quadrant, task.id, insert_index)
         return self._changed_result("move", task.id, "Task moved", {"task": asdict(task)})
 
     def _complete_task(self, command: CompleteTask) -> CommandResult:
@@ -282,6 +305,7 @@ class TaskApplication:
                     "due_date": command.due_date,
                     "has_time": command.has_time,
                     "reminder_minutes": command.reminder_minutes,
+                    "tags": self._normalize_tags(command.tags),
                 },
             },
         )
@@ -312,6 +336,8 @@ class TaskApplication:
                 "reminder_minutes": command.reminder_minutes,
             }
         )
+        if command.tags is not None:
+            after["tags"] = self._normalize_tags(command.tags)
         if (
             before["due_date"] != command.due_date
             or before["reminder_minutes"] != command.reminder_minutes
@@ -342,7 +368,42 @@ class TaskApplication:
 
         before = asdict(task)
         after = {**before, "quadrant": command.new_quadrant}
+        if command.insert_index is not None:
+            after["insert_index"] = command.insert_index
         return self._preview_result("move", task.id, before, after)
+
+    def next_sort_order(self, quadrant: str) -> int:
+        orders = [task.sort_order for task in self.tasks.values() if task.quadrant == quadrant]
+        return (max(orders) + 1000) if orders else 1000
+
+    def visible_index(self, task_id: str, quadrant: str) -> int | None:
+        for index, task in enumerate(self.visible_tasks_for_quadrant(quadrant)):
+            if task.id == task_id:
+                return index
+        return None
+
+    def visible_tasks_for_quadrant(self, quadrant: str) -> list[Task]:
+        if quadrant == "inbox":
+            return self.get_visible_inbox_tasks()
+        return [task for task in self.get_visible_matrix_tasks() if task.quadrant == quadrant]
+
+    def reorder_visible_tasks(self, quadrant: str, moved_task_id: str, insert_index: int) -> None:
+        ordered = [task for task in self.visible_tasks_for_quadrant(quadrant) if task.id != moved_task_id]
+        moved_task = self.tasks.get(moved_task_id)
+        if moved_task is None:
+            return
+
+        insert_index = max(0, min(insert_index, len(ordered)))
+        ordered.insert(insert_index, moved_task)
+        for index, task in enumerate(ordered):
+            task.sort_order = (index + 1) * 1000
+
+    def normalize_sort_orders(self) -> None:
+        for quadrant in {"inbox", "q1", "q2", "q3", "q4"}:
+            ordered = self.visible_tasks_for_quadrant(quadrant)
+            for index, task in enumerate(ordered):
+                if task.sort_order <= 0:
+                    task.sort_order = (index + 1) * 1000
 
     def _preview_complete(self, command: CompleteTask) -> CommandResult:
         task = self.tasks.get(command.task_id)
@@ -473,6 +534,24 @@ class TaskApplication:
                     task_id=task_id,
                 )
         return None
+
+    def _normalize_tags(self, tags: list[dict[str, str]] | None) -> list[dict[str, str]]:
+        if not tags:
+            return []
+
+        normalized = []
+        seen = set()
+        for tag in tags:
+            if not isinstance(tag, dict):
+                continue
+            name = str(tag.get("name", "")).strip()
+            color = str(tag.get("color", "#6B7280")).strip() or "#6B7280"
+            key = name.casefold()
+            if not name or key in seen:
+                continue
+            seen.add(key)
+            normalized.append({"name": name, "color": color})
+        return normalized
 
     def _validate_completed_at(
         self,

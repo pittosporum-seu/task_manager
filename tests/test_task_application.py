@@ -106,6 +106,33 @@ def test_task_application_dispatches_task_lifecycle_commands():
     ]
 
 
+def test_task_application_adds_and_updates_tags():
+    app, repository, events = make_application()
+
+    add_result = app.dispatch(
+        AddTask(title="Tagged", tags=[{"name": "Work", "color": "#2563EB"}])
+    )
+    task_id = add_result.task_id
+
+    assert add_result.ok
+    assert app.get_task(task_id).tags == [{"name": "Work", "color": "#2563EB"}]
+
+    update_result = app.dispatch(
+        UpdateTask(
+            task_id=task_id,
+            title="Tagged",
+            description="",
+            due_date=None,
+            has_time=False,
+            reminder_minutes=None,
+            tags=[{"name": "Home", "color": "#059669"}],
+        )
+    )
+
+    assert update_result.ok
+    assert app.get_task(task_id).tags == [{"name": "Home", "color": "#059669"}]
+
+
 def test_task_application_check_reminders_triggers_events():
     task = Task.create(
         title="Reminder",

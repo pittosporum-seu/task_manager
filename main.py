@@ -13,6 +13,7 @@ def main() -> int:
     app = QApplication(argv)
     app.setStyle("Fusion")
     app.setStyleSheet(GLOBAL_STYLES)
+    app.setQuitOnLastWindowClosed(False)
 
     window = MainWindow()
     if smoke_test:

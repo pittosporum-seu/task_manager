@@ -21,7 +21,7 @@ from app.application.queries import ListTasks, list_tasks
 from app.application.results import CommandResult
 from app.application.serializers import command_result_to_dict, task_to_dict
 from app.application.task_app import TaskApplication
-from app.config import DATA_DIR
+from app.config import DATA_DIR, TAG_COLORS
 from app.infrastructure.audit_log import JsonlAuditLog
 from app.infrastructure.json_task_repository import JsonTaskRepository
 
@@ -34,12 +34,20 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "list":
         task_list = list_tasks(application, ListTasks(view=args.view))
+        tasks = filter_tasks_by_tag(task_list.tasks, args.tag)
         return print_query_result(
             "Tasks listed",
             {
                 "view": task_list.view,
-                "tasks": [task_to_dict(task) for task in task_list.tasks],
+                "tag": args.tag,
+                "tasks": [task_to_dict(task) for task in tasks],
             },
+            pretty=args.pretty,
+        )
+    if args.command == "tags":
+        return print_query_result(
+            "Tags listed",
+            {"tags": get_all_tags(application, args.file)},
             pretty=args.pretty,
         )
     if args.command == "get":
@@ -80,6 +88,9 @@ def build_parser() -> argparse.ArgumentParser:
         default="all",
         help="Task view to list.",
     )
+    list_parser.add_argument("--tag", help="Only list tasks that have this tag.")
+
+    subparsers.add_parser("tags", help="List all tags")
 
     get_parser = subparsers.add_parser("get", help="Get one task")
     get_parser.add_argument("task_id")
@@ -91,6 +102,12 @@ def build_parser() -> argparse.ArgumentParser:
     add_parser.add_argument("--has-time", action="store_true")
     add_parser.add_argument("--reminder-minutes", type=int)
     add_parser.add_argument("--quadrant", default="inbox")
+    add_parser.add_argument(
+        "--tag",
+        action="append",
+        default=[],
+        help="Attach a tag to the new task. Can be repeated.",
+    )
     add_execution_options(add_parser)
 
     update_parser = subparsers.add_parser("update", help="Update a task")
@@ -164,6 +181,7 @@ def dispatch_command(
                 has_time=args.has_time,
                 reminder_minutes=args.reminder_minutes,
                 quadrant=args.quadrant,
+                tags=build_tags(application, args.file, args.tag),
             ),
             context=context,
         )
@@ -239,6 +257,90 @@ def parse_datetime_arg(value: str | None) -> datetime | None:
     if value is None:
         return None
     return datetime.fromisoformat(value)
+
+
+def filter_tasks_by_tag(tasks, tag_name: str | None):
+    if not tag_name:
+        return tasks
+    key = tag_name.casefold()
+    return [
+        task
+        for task in tasks
+        if any(tag.get("name", "").casefold() == key for tag in task.tags)
+    ]
+
+
+def build_tags(application: TaskApplication, filename: str, tag_names: list[str]) -> list[dict[str, str]]:
+    existing = {tag["name"].casefold(): tag for tag in get_all_tags(application, filename)}
+    result = []
+    used = set(existing)
+    for raw_name in tag_names:
+        name = raw_name.strip()
+        if not name:
+            continue
+        key = name.casefold()
+        if any(tag["name"].casefold() == key for tag in result):
+            continue
+        if key in existing:
+            result.append(existing[key])
+            continue
+        color = TAG_COLORS[len(used) % len(TAG_COLORS)]
+        used.add(key)
+        result.append({"name": name, "color": color})
+    return result
+
+
+def get_all_tags(application: TaskApplication, filename: str) -> list[dict[str, Any]]:
+    tags_by_name = {}
+    for tag in load_tag_catalog(filename):
+        tags_by_name[tag["name"].casefold()] = {**tag, "count": 0}
+
+    for task in application.tasks.values():
+        seen_on_task = set()
+        for tag in task.tags:
+            name = str(tag.get("name", "")).strip()
+            if not name:
+                continue
+            key = name.casefold()
+            tags_by_name.setdefault(
+                key,
+                {
+                    "name": name,
+                    "color": tag.get("color", "#6B7280"),
+                    "count": 0,
+                },
+            )
+            if key not in seen_on_task:
+                tags_by_name[key]["count"] += 1
+                seen_on_task.add(key)
+    return sorted(tags_by_name.values(), key=lambda tag: tag["name"].casefold())
+
+
+def load_tag_catalog(filename: str) -> list[dict[str, str]]:
+    catalog_path = Path(filename).parent / "tags.json"
+    if not catalog_path.exists():
+        return []
+    try:
+        with catalog_path.open("r", encoding="utf-8") as handle:
+            raw = json.load(handle)
+    except (OSError, json.JSONDecodeError, TypeError):
+        return []
+    if not isinstance(raw, list):
+        return []
+
+    tags = []
+    seen = set()
+    for tag in raw:
+        if not isinstance(tag, dict):
+            continue
+        name = str(tag.get("name", "")).strip()
+        color = str(tag.get("color", "#6B7280")).strip() or "#6B7280"
+        key = name.casefold()
+        if not name or key in seen:
+            continue
+        seen.add(key)
+        tags.append({"name": name, "color": color})
+    return tags
 
 
 def print_query_result(message: str, data: dict[str, Any], *, pretty: bool) -> int:

@@ -12,5 +12,9 @@ build/
 *.egg-info/
 data/tasks.json
 data/audit.log.jsonl
+data/tags.json
 work/
 outputs/
+
+
+*.exe

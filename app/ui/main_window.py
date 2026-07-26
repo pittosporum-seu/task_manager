@@ -1,5 +1,7 @@
-from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QHBoxLayout, QMainWindow, QSystemTrayIcon, QWidget
+from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtWidgets import QHBoxLayout, QMainWindow, QSystemTrayIcon, QWidget, QMenu, QApplication
+from PyQt6.QtCore import Qt
+
 
 from app.config import APP_LOGO_PATH
 from app.resources.strings import Strings
@@ -11,12 +13,13 @@ from app.ui.views.sidebar import SidebarView
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(Strings.get("window_main_title"))
+        self.setWindowTitle(Strings.get("我的任务"))
         self.setWindowIcon(QIcon(APP_LOGO_PATH))
         self.resize(1100, 750)
 
+        self.setWindowFlag(self.windowFlags() | Qt.WindowType.Tool)
+        
         self.service = TaskService()
-        self.tray_icon = None
         self.setup_tray()
         self.setup_ui()
 
@@ -27,9 +30,23 @@ class MainWindow(QMainWindow):
     def setup_tray(self) -> None:
         if not QSystemTrayIcon.isSystemTrayAvailable():
             return
-        self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon(APP_LOGO_PATH))
-        self.tray_icon.show()
+        self.tray = QSystemTrayIcon(self)
+        self.tray.setIcon(QIcon(APP_LOGO_PATH))
+
+        menu = QMenu()
+        show_action = QAction("显示", self)
+        show_action.triggered.connect(self.show_window)
+
+        quit_action = QAction("退出", self)
+        quit_action.triggered.connect(QApplication.quit)
+
+        menu.addAction(show_action)
+        menu.addAction(quit_action)
+
+        self.tray.setContextMenu(menu)
+        # 双击显示
+        self.tray.activated.connect(self.on_tray_activated)
+        self.tray.show()
 
     def setup_ui(self) -> None:
         main_widget = QWidget()
@@ -50,16 +67,24 @@ class MainWindow(QMainWindow):
         self.matrix.refresh()
 
     def show_notification(self, title: str, task_id: str) -> None:
-        if self.tray_icon is None:
+        if self.tray.icon() is None:
             return
-        self.tray_icon.showMessage(
+        self.tray.showMessage(
             Strings.get("notification_title"),
             Strings.get("notification_body", title=title),
             QSystemTrayIcon.MessageIcon.Information,
             5000,
         )
 
+    def on_tray_activated(self, reason):
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            self.show_window()
+    
+    def show_window(self):
+            self.showNormal()          # 从最小化/隐藏恢复
+            self.raise_()              # 提到最前
+            self.activateWindow()      # 获取焦点
+
+
     def closeEvent(self, event):
-        if self.tray_icon is not None:
-            self.tray_icon.hide()
         super().closeEvent(event)

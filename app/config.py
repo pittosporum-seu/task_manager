@@ -24,6 +24,7 @@ ICON_ARCHIVE_PATH = resource_path("icon_archive.svg")
 ICON_MATRIX_PATH = resource_path("icon_matrix.svg")
 CHECKBOX_UNCHECKED_PATH = resource_path("checkbox_unchecked.svg")
 CHECKBOX_CHECKED_PATH = resource_path("checkbox_checked.svg")
+DATE_ARROW_DOWN_PATH = resource_path("date_arrow_down.svg")
 
 COLORS = {
     "primary": "#2563EB",
@@ -40,6 +41,19 @@ COLORS = {
     "warning": "#D97706",
     "blue_soft": "#EFF6FF",
 }
+
+TAG_COLORS = [
+    "#2563EB",
+    "#059669",
+    "#D97706",
+    "#DB2777",
+    "#7C3AED",
+    "#0891B2",
+    "#65A30D",
+    "#DC2626",
+    "#4F46E5",
+    "#0F766E",
+]
 
 _QUADRANT_PRESENTATION = {
     "q1": {"row": 0, "col": 0, "bg": "#FEF2F2", "text": "#7F1D1D"},
@@ -171,11 +185,14 @@ STYLE_BTN_ARCHIVE = f"""
 
 STYLE_CARD_CONTAINER = f"""
     TaskCardWidget {{
+        background: transparent;
+    }}
+    QFrame#taskCardSurface {{
         background-color: {COLORS["surface"]};
-        border-radius: 8px;
+        border-radius: 12px;
         border: 1px solid {COLORS["border"]};
     }}
-    TaskCardWidget:hover {{
+    QFrame#taskCardSurface:hover {{
         border: 1px solid {COLORS["border_hover"]};
     }}
 """
@@ -256,13 +273,142 @@ STYLE_INPUT = f"""
     QLineEdit, QTextEdit, QDateTimeEdit {{
         padding: 10px;
         border: 1px solid {COLORS["border"]};
-        border-radius: 6px;
+        border-radius: 8px;
         font-size: 14px;
         color: {COLORS["text_main"]};
         background-color: {COLORS["surface"]};
     }}
+    QDateTimeEdit {{
+        padding-right: 34px;
+    }}
     QLineEdit:focus, QTextEdit:focus, QDateTimeEdit:focus {{
         border: 2px solid {COLORS["primary"]};
+    }}
+    QDateTimeEdit::drop-down {{
+        subcontrol-origin: padding;
+        subcontrol-position: center right;
+        width: 30px;
+        border: none;
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+        background-color: transparent;
+    }}
+    QDateTimeEdit::drop-down:hover {{
+        background-color: {COLORS["surface_soft"]};
+    }}
+    QDateTimeEdit::down-arrow {{
+        image: url("{DATE_ARROW_DOWN_PATH}");
+        width: 12px;
+        height: 8px;
+    }}
+"""
+
+STYLE_CALENDAR = f"""
+    QCalendarWidget {{
+        background-color: {COLORS["surface"]};
+        border: 1px solid {COLORS["border"]};
+        border-radius: 14px;
+    }}
+    QCalendarWidget QWidget#qt_calendar_navigationbar {{
+        background-color: {COLORS["surface_soft"]};
+        border-top-left-radius: 14px;
+        border-top-right-radius: 14px;
+        padding: 10px;
+    }}
+    QCalendarWidget QToolButton {{
+        background-color: transparent;
+        color: {COLORS["text_main"]};
+        border: none;
+        border-radius: 8px;
+        margin: 4px;
+        padding: 7px 10px;
+        font-size: 14px;
+        font-weight: 700;
+    }}
+    QCalendarWidget QToolButton#qt_calendar_prevmonth,
+    QCalendarWidget QToolButton#qt_calendar_nextmonth {{
+        qproperty-icon: none;
+        min-width: 32px;
+        min-height: 32px;
+        font-size: 16px;
+    }}
+    QCalendarWidget QToolButton:hover {{
+        background-color: {COLORS["blue_soft"]};
+        color: {COLORS["primary"]};
+    }}
+    QCalendarWidget QToolButton::menu-indicator {{
+        image: none;
+    }}
+    QCalendarWidget QSpinBox {{
+        background-color: {COLORS["surface"]};
+        border: 1px solid {COLORS["border"]};
+        border-radius: 8px;
+        padding: 5px 10px;
+        color: {COLORS["text_main"]};
+    }}
+    QCalendarWidget QTableView {{
+        background-color: {COLORS["surface"]};
+        color: {COLORS["text_main"]};
+        selection-background-color: {COLORS["primary"]};
+        selection-color: white;
+        border: none;
+        outline: none;
+        font-size: 14px;
+        padding: 12px;
+    }}
+    QCalendarWidget QTableView:enabled {{
+        alternate-background-color: {COLORS["surface_soft"]};
+    }}
+"""
+
+STYLE_TIME_PICKER = f"""
+    QWidget#dateTimePickerPopup {{
+        background-color: {COLORS["surface"]};
+        border: 1px solid {COLORS["border"]};
+        border-radius: 14px;
+    }}
+    QFrame#timePanel {{
+        background-color: {COLORS["surface_soft"]};
+        border: 1px solid {COLORS["border"]};
+        border-radius: 12px;
+    }}
+    QLabel#timeTitle {{
+        color: {COLORS["text_main"]};
+        font-size: 13px;
+        font-weight: 700;
+    }}
+    QLabel#timeValue {{
+        color: {COLORS["primary"]};
+        font-size: 28px;
+        font-weight: 800;
+    }}
+    QLabel#timeCaption {{
+        color: {COLORS["text_muted"]};
+        font-size: 11px;
+        font-weight: 700;
+    }}
+    QDial {{
+        background-color: transparent;
+    }}
+    QSpinBox {{
+        background-color: {COLORS["surface"]};
+        border: 1px solid {COLORS["border"]};
+        border-radius: 8px;
+        padding: 6px 8px;
+        color: {COLORS["text_main"]};
+        font-size: 13px;
+    }}
+    QPushButton#pickerDoneButton {{
+        background-color: {COLORS["primary"]};
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 18px;
+        font-size: 13px;
+        font-weight: 700;
+    }}
+    QPushButton#pickerDoneButton:hover {{
+        background-color: {COLORS["primary_hover"]};
     }}
 """
 

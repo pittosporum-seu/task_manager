@@ -43,9 +43,10 @@ def is_visible_active_task(task: Task, today: Optional[str] = None) -> bool:
     return not task.completed or is_completed_today(task, today)
 
 
-def task_sort_key(task: Task) -> tuple[bool, bool, str]:
+def task_sort_key(task: Task) -> tuple[bool, int, bool, str]:
     return (
         task.completed,
+        task.sort_order,
         task.due_date is None or task.due_date == "",
         task.due_date or "",
     )

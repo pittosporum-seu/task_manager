@@ -2,6 +2,7 @@ from PyQt6.QtCore import QPoint, QSize, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QFrame,
+    QHBoxLayout,
     QLabel,
     QListWidgetItem,
     QMenu,
@@ -24,6 +25,7 @@ from app.ui.components.draggable_list import DraggableListWidget
 from app.ui.components.task_card import TaskCardWidget
 from app.ui.components.task_dialog import TaskDialog
 from app.ui.views.archive_dialog import ArchiveDialog
+from app.ui.views.tag_manager_dialog import TagManagerDialog
 
 
 class SidebarView(QWidget):
@@ -68,11 +70,23 @@ class SidebarView(QWidget):
         line.setStyleSheet(STYLE_SEPARATOR)
         layout.addWidget(line)
 
+        bottom_buttons = QHBoxLayout()
+        bottom_buttons.setContentsMargins(0, 0, 0, 0)
+        bottom_buttons.setSpacing(8)
+
         btn_archive = QPushButton(Strings.get("btn_archive"))
         btn_archive.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_archive.setStyleSheet(STYLE_BTN_ARCHIVE)
         btn_archive.clicked.connect(self.open_archive)
-        layout.addWidget(btn_archive)
+        bottom_buttons.addWidget(btn_archive, 1)
+
+        btn_tags = QPushButton("标签管理")
+        btn_tags.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_tags.setStyleSheet(STYLE_BTN_ARCHIVE)
+        btn_tags.clicked.connect(self.open_tag_manager)
+        bottom_buttons.addWidget(btn_tags, 1)
+
+        layout.addLayout(bottom_buttons)
 
     def refresh(self) -> None:
         self.inbox_list.clear()
@@ -128,7 +142,7 @@ class SidebarView(QWidget):
         menu.exec(self.inbox_list.mapToGlobal(pos))
 
     def open_task_dialog(self, task=None) -> None:
-        dialog = TaskDialog(self, task)
+        dialog = TaskDialog(self, task, self.service.get_all_tags())
         if dialog.exec():
             data = dialog.result_data
             if task:
@@ -139,6 +153,7 @@ class SidebarView(QWidget):
                     data["due_date"],
                     data["has_time"],
                     data["reminder_minutes"],
+                    data["tags"],
                 )
             else:
                 self.service.add_task(
@@ -147,9 +162,15 @@ class SidebarView(QWidget):
                     data["due_date"],
                     data["has_time"],
                     data["reminder_minutes"],
+                    tags=data["tags"],
                 )
 
     def open_archive(self) -> None:
         dialog = ArchiveDialog(self.service, self)
+        dialog.exec()
+        self.service.data_changed.emit()
+
+    def open_tag_manager(self) -> None:
+        dialog = TagManagerDialog(self.service, self)
         dialog.exec()
         self.service.data_changed.emit()
