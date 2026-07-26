@@ -13,7 +13,7 @@ def draw_logo(size: int) -> Image.Image:
     draw = ImageDraw.Draw(image)
 
     def s(value):
-        return int(round(value * scale))
+        return round(value * scale)
 
     rounded_rect(draw, (0, 0, size, size), s(28), "#111827")
     rounded_rect(draw, (s(24), s(24), s(60), s(60)), s(9), "#FCA5A5")

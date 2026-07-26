@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass
@@ -11,13 +11,13 @@ class Task:
     quadrant: str
     created_at: str
     description: str = ""
-    due_date: Optional[str] = None
+    due_date: str | None = None
     has_time: bool = False
-    reminder_minutes: Optional[int] = None
+    reminder_minutes: int | None = None
     reminder_sent: bool = False
     status: str = "pending"
     completed: bool = False
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
     sort_order: int = 0
     tags: list[dict[str, str]] = field(default_factory=list)
 
@@ -27,10 +27,10 @@ class Task:
         title: str,
         description: str = "",
         quadrant: str = "inbox",
-        due_date: Optional[str] = None,
+        due_date: str | None = None,
         has_time: bool = False,
-        reminder_minutes: Optional[int] = None,
-        tags: Optional[list[dict[str, str]]] = None,
+        reminder_minutes: int | None = None,
+        tags: list[dict[str, str]] | None = None,
     ) -> "Task":
         return cls(
             id=str(uuid.uuid4()),
@@ -45,7 +45,7 @@ class Task:
         )
 
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any], fallback_id: Optional[str] = None) -> "Task":
+    def from_dict(cls, payload: dict[str, Any], fallback_id: str | None = None) -> "Task":
         defaults = {
             "id": fallback_id or str(uuid.uuid4()),
             "title": "Untitled",

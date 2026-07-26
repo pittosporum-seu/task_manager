@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta
-from typing import Iterable, List, Optional
 
 from app.models.task import Task
-
 
 QUADRANT_DEFINITIONS = (
     {"id": "q1", "title_key": "q1_title"},
@@ -19,12 +18,12 @@ def is_valid_quadrant(quadrant_id: str) -> bool:
     return quadrant_id in VALID_QUADRANTS
 
 
-def today_key(now: Optional[datetime | date] = None) -> str:
+def today_key(now: datetime | date | None = None) -> str:
     current = now or datetime.now()
     return current.strftime("%Y-%m-%d")
 
 
-def parse_datetime(value: Optional[str]) -> Optional[datetime]:
+def parse_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
@@ -33,13 +32,13 @@ def parse_datetime(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
-def is_completed_today(task: Task, today: Optional[str] = None) -> bool:
+def is_completed_today(task: Task, today: str | None = None) -> bool:
     if not task.completed or not task.completed_at:
         return False
     return task.completed_at.startswith(today or today_key())
 
 
-def is_visible_active_task(task: Task, today: Optional[str] = None) -> bool:
+def is_visible_active_task(task: Task, today: str | None = None) -> bool:
     return not task.completed or is_completed_today(task, today)
 
 
@@ -55,9 +54,9 @@ def task_sort_key(task: Task) -> tuple[bool, int, bool, str]:
 def visible_active_tasks(
     tasks: Iterable[Task],
     *,
-    quadrant_id: Optional[str] = None,
-    today: Optional[str] = None,
-) -> List[Task]:
+    quadrant_id: str | None = None,
+    today: str | None = None,
+) -> list[Task]:
     visible = []
     current_day = today or today_key()
     for task in tasks:
@@ -68,11 +67,11 @@ def visible_active_tasks(
     return sorted(visible, key=task_sort_key)
 
 
-def visible_inbox_tasks(tasks: Iterable[Task], *, today: Optional[str] = None) -> List[Task]:
+def visible_inbox_tasks(tasks: Iterable[Task], *, today: str | None = None) -> list[Task]:
     return visible_active_tasks(tasks, quadrant_id="inbox", today=today)
 
 
-def visible_matrix_tasks(tasks: Iterable[Task], *, today: Optional[str] = None) -> List[Task]:
+def visible_matrix_tasks(tasks: Iterable[Task], *, today: str | None = None) -> list[Task]:
     visible = [
         task
         for task in tasks
@@ -81,7 +80,7 @@ def visible_matrix_tasks(tasks: Iterable[Task], *, today: Optional[str] = None) 
     return sorted(visible, key=task_sort_key)
 
 
-def archived_tasks(tasks: Iterable[Task], *, today: Optional[str] = None) -> List[Task]:
+def archived_tasks(tasks: Iterable[Task], *, today: str | None = None) -> list[Task]:
     archive_day = today or today_key()
     completed = [
         task for task in tasks if task.completed and not is_completed_today(task, archive_day)
@@ -89,7 +88,7 @@ def archived_tasks(tasks: Iterable[Task], *, today: Optional[str] = None) -> Lis
     return sorted(completed, key=lambda task: task.completed_at or "", reverse=True)
 
 
-def should_trigger_reminder(task: Task, now: Optional[datetime] = None) -> bool:
+def should_trigger_reminder(task: Task, now: datetime | None = None) -> bool:
     if not task.due_date or task.reminder_minutes is None or task.reminder_sent or task.completed:
         return False
 
@@ -101,7 +100,7 @@ def should_trigger_reminder(task: Task, now: Optional[datetime] = None) -> bool:
     return (now or datetime.now()) >= trigger_at
 
 
-def normalize_tags(value: Optional[list] = None) -> list[dict[str, str]]:
+def normalize_tags(value: list | None = None) -> list[dict[str, str]]:
     """Canonical tag normalization — single source of truth for all layers.
 
     Handles: null/empty → [], string items (legacy), dict items,

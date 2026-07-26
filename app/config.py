@@ -4,7 +4,6 @@ from pathlib import Path
 from app.domain.task_rules import QUADRANT_DEFINITIONS
 from app.resources.strings import Strings
 
-
 IS_FROZEN = getattr(sys, "frozen", False)
 BASE_DIR = Path(__file__).resolve().parents[1]
 APP_ROOT = Path(sys.executable).resolve().parent if IS_FROZEN else BASE_DIR

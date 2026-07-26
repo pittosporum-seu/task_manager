@@ -1,6 +1,5 @@
 from PyQt6.QtCore import QByteArray, QMimeData, QPoint, QSize, Qt
-from PyQt6.QtGui import QDrag, QPainter, QPixmap
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QDrag, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,

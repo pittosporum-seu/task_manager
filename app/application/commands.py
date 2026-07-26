@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Union
+from typing import Union
 
 
 @dataclass(frozen=True)
 class AddTask:
     title: str
     description: str = ""
-    due_date: Optional[str] = None
+    due_date: str | None = None
     has_time: bool = False
-    reminder_minutes: Optional[int] = None
+    reminder_minutes: int | None = None
     quadrant: str = "inbox"
-    tags: Optional[list[dict[str, str]]] = None
+    tags: list[dict[str, str]] | None = None
 
 
 @dataclass(frozen=True)
@@ -21,10 +21,10 @@ class UpdateTask:
     task_id: str
     title: str
     description: str
-    due_date: Optional[str]
+    due_date: str | None
     has_time: bool
-    reminder_minutes: Optional[int]
-    tags: Optional[list[dict[str, str]]] = None
+    reminder_minutes: int | None
+    tags: list[dict[str, str]] | None = None
 
 
 @dataclass(frozen=True)
@@ -36,13 +36,13 @@ class DeleteTask:
 class MoveTask:
     task_id: str
     new_quadrant: str
-    insert_index: Optional[int] = None
+    insert_index: int | None = None
 
 
 @dataclass(frozen=True)
 class CompleteTask:
     task_id: str
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -52,7 +52,7 @@ class ReopenTask:
 
 @dataclass(frozen=True)
 class CheckReminders:
-    now: Optional[datetime] = None
+    now: datetime | None = None
 
 
 # ── Tag commands ──────────────────────────────────────────────────

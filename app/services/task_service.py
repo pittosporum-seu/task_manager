@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
@@ -24,8 +23,8 @@ from app.application.events import ReminderTriggered, TaskChanged
 from app.application.task_app import TaskApplication
 from app.config import DATA_DIR
 from app.infrastructure.audit_log import JsonlAuditLog
-from app.infrastructure.json_task_repository import JsonTaskRepository
 from app.infrastructure.json_tag_catalog_repository import JsonTagCatalogRepository
+from app.infrastructure.json_task_repository import JsonTaskRepository
 from app.models.task import Task
 
 
@@ -33,7 +32,7 @@ class TaskService(QObject):
     data_changed = pyqtSignal()
     reminder_triggered = pyqtSignal(str, str)
 
-    def __init__(self, filename: Optional[str] = None, enable_timer: bool = True):
+    def __init__(self, filename: str | None = None, enable_timer: bool = True):
         super().__init__()
         self.filepath = Path(filename) if filename else DATA_DIR / "tasks.json"
         self.repository = JsonTaskRepository(self.filepath)
@@ -71,11 +70,11 @@ class TaskService(QObject):
         self,
         title: str,
         description: str = "",
-        due_date: Optional[str] = None,
+        due_date: str | None = None,
         has_time: bool = False,
-        reminder_minutes: Optional[int] = None,
+        reminder_minutes: int | None = None,
         quadrant: str = "inbox",
-        tags: Optional[list[dict[str, str]]] = None,
+        tags: list[dict[str, str]] | None = None,
     ) -> Task:
         result = self._dispatch(
             AddTask(
@@ -98,10 +97,10 @@ class TaskService(QObject):
         task_id: str,
         title: str,
         description: str,
-        due_date: Optional[str],
+        due_date: str | None,
         has_time: bool,
-        reminder_minutes: Optional[int],
-        tags: Optional[list[dict[str, str]]] = None,
+        reminder_minutes: int | None,
+        tags: list[dict[str, str]] | None = None,
     ) -> None:
         self._dispatch(
             UpdateTask(
@@ -118,9 +117,7 @@ class TaskService(QObject):
     def delete_task(self, task_id: str) -> None:
         self._dispatch(DeleteTask(task_id=task_id))
 
-    def move_task(
-        self, task_id: str, new_quadrant: str, insert_index: Optional[int] = None
-    ) -> None:
+    def move_task(self, task_id: str, new_quadrant: str, insert_index: int | None = None) -> None:
         self._dispatch(
             MoveTask(task_id=task_id, new_quadrant=new_quadrant, insert_index=insert_index)
         )
@@ -129,7 +126,7 @@ class TaskService(QObject):
         self,
         task_id: str,
         completed: bool,
-        completed_at: Optional[str] = None,
+        completed_at: str | None = None,
     ) -> None:
         if completed:
             self._dispatch(CompleteTask(task_id=task_id, completed_at=completed_at))

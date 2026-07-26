@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QSize, QTimer, Qt
+from PyQt6.QtCore import QSize, Qt, QTimer
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QDialog, QLabel, QListWidget, QListWidgetItem, QPushButton, QVBoxLayout
 
@@ -9,9 +9,9 @@ from app.config import (
     STYLE_BTN_SECONDARY,
     STYLE_EMPTY_STATE,
 )
+from app.resources.strings import Strings
 from app.services.task_service import TaskService
 from app.ui.components.task_card import TaskCardWidget
-from app.resources.strings import Strings
 
 
 class ArchiveDialog(QDialog):

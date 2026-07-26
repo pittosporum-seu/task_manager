@@ -129,7 +129,7 @@ def test_task_application_dispatches_task_lifecycle_commands():
 
 
 def test_task_application_adds_and_updates_tags():
-    app, repository, events = make_application()
+    app, _repository, _events = make_application()
 
     add_result = app.dispatch(AddTask(title="Tagged", tags=[{"name": "Work", "color": "#2563EB"}]))
     task_id = add_result.task_id
@@ -254,7 +254,7 @@ def test_task_application_rejects_future_ai_delete_without_dry_run():
 
 
 def test_task_application_renames_tag_across_tasks():
-    app, repository, events = make_application()
+    app, _repository, events = make_application()
 
     work = {"name": "Work", "color": "#2563EB"}
     home = {"name": "Home", "color": "#059669"}
@@ -285,7 +285,7 @@ def test_task_application_renames_tag_across_tasks():
 
 
 def test_task_application_deletes_tag_from_all_tasks():
-    app, repository, events = make_application()
+    app, _repository, events = make_application()
 
     work = {"name": "Work", "color": "#2563EB"}
     home = {"name": "Home", "color": "#059669"}
@@ -313,7 +313,7 @@ def test_task_application_deletes_tag_from_all_tasks():
 
 
 def test_task_application_merges_tag():
-    app, repository, events = make_application()
+    app, _repository, events = make_application()
 
     work = {"name": "Work", "color": "#2563EB"}
     home = {"name": "Home", "color": "#059669"}
@@ -337,7 +337,7 @@ def test_task_application_merges_tag():
 
 
 def test_task_application_prunes_stale_tags():
-    app, repository, events = make_application()
+    app, _repository, events = make_application()
 
     active = {"name": "Active", "color": "#2563EB"}
     recent = {"name": "Recent", "color": "#059669"}
@@ -374,7 +374,7 @@ def test_task_application_prunes_stale_tags():
 
 
 def test_task_application_tag_dry_run_previews_without_changing():
-    app, repository, events = make_application()
+    app, _repository, events = make_application()
 
     work = {"name": "Work", "color": "#2563EB"}
     app.dispatch(AddTask(title="First", tags=[work]))
@@ -394,14 +394,14 @@ def test_task_application_tag_dry_run_previews_without_changing():
     assert result.preview["affected_task_count"] == 1
 
     # Verify no mutations
-    task = list(app.tasks.values())[0]
+    task = next(iter(app.tasks.values()))
     assert task.tags == [{"name": "Work", "color": "#2563EB"}]
     # Verify no events published in dry-run mode
     assert task_changed_events(events) == []
 
 
 def test_task_application_tag_dry_run_rename_previews():
-    app, repository, events = make_application()
+    app, _repository, events = make_application()
 
     work = {"name": "Work", "color": "#2563EB"}
     app.dispatch(AddTask(title="First", tags=[work]))
@@ -421,7 +421,7 @@ def test_task_application_tag_dry_run_rename_previews():
 
 
 def test_task_application_tag_dry_run_prune_previews():
-    app, repository, events = make_application()
+    app, _repository, events = make_application()
 
     active = {"name": "Active", "color": "#2563EB"}
     app.dispatch(AddTask(title="Active", tags=[active]))
@@ -439,7 +439,7 @@ def test_task_application_tag_dry_run_prune_previews():
 
 
 def test_task_application_rejects_future_ai_tag_delete_without_dry_run():
-    app, repository, events = make_application()
+    app, _repository, events = make_application()
     app.dispatch(AddTask(title="Task", tags=[{"name": "Work", "color": "#2563EB"}]))
 
     events.clear()
@@ -455,7 +455,7 @@ def test_task_application_rejects_future_ai_tag_delete_without_dry_run():
 
 def test_task_application_tag_audit_logging():
     audit_log = InMemoryAuditLog()
-    app, repository, events = make_application(audit_log=audit_log)
+    app, _repository, _events = make_application(audit_log=audit_log)
 
     app.dispatch(AddTask(title="Task", tags=[{"name": "Work", "color": "#2563EB"}]))
     app.dispatch(DeleteTag(name="Work"))
@@ -467,7 +467,7 @@ def test_task_application_tag_audit_logging():
 
 
 def test_task_application_get_all_tags():
-    app, repository, events = make_application()
+    app, _repository, _events = make_application()
 
     work = {"name": "Work", "color": "#2563EB"}
     home = {"name": "Home", "color": "#059669"}
@@ -482,7 +482,7 @@ def test_task_application_get_all_tags():
 
 
 def test_task_application_get_tag_reference_counts():
-    app, repository, events = make_application()
+    app, _repository, _events = make_application()
 
     work = {"name": "Work", "color": "#2563EB"}
     home = {"name": "Home", "color": "#059669"}
@@ -496,7 +496,7 @@ def test_task_application_get_tag_reference_counts():
 
 
 def test_task_application_merge_tag_same_source_and_target():
-    app, repository, events = make_application()
+    app, _repository, _events = make_application()
 
     result = app.dispatch(MergeTag(source_name="Work", target_name="Work", target_color="#6B7280"))
 
@@ -506,7 +506,7 @@ def test_task_application_merge_tag_same_source_and_target():
 
 
 def test_task_application_rename_tag_empty_new_name():
-    app, repository, events = make_application()
+    app, _repository, _events = make_application()
 
     result = app.dispatch(RenameTag(old_name="Work", new_name="   ", color="#6B7280"))
 
@@ -516,7 +516,7 @@ def test_task_application_rename_tag_empty_new_name():
 
 def test_task_application_add_task_syncs_catalog():
     tag_repo = InMemoryTagCatalogRepository()
-    app, repository, events = make_application(tag_catalog=tag_repo)
+    app, _repository, _events = make_application(tag_catalog=tag_repo)
 
     app.dispatch(AddTask(title="Task", tags=[{"name": "NewTag", "color": "#2563EB"}]))
 
@@ -526,7 +526,7 @@ def test_task_application_add_task_syncs_catalog():
 
 def test_task_application_update_task_syncs_catalog():
     tag_repo = InMemoryTagCatalogRepository()
-    app, repository, events = make_application(tag_catalog=tag_repo)
+    app, _repository, _events = make_application(tag_catalog=tag_repo)
 
     add_result = app.dispatch(AddTask(title="Task"))
     app.dispatch(

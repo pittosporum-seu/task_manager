@@ -40,7 +40,6 @@ from app.infrastructure.tag_catalog_repository import TagCatalogRepository
 from app.infrastructure.task_repository import TaskRepository
 from app.models.task import Task
 
-
 TITLE_MAX_LENGTH = 120
 DESCRIPTION_MAX_LENGTH = 2_000
 FUTURE_AI_SOURCE = "future_ai"
@@ -637,7 +636,7 @@ class TaskApplication:
             task.sort_order = (index + 1) * 1000
 
     def normalize_sort_orders(self) -> None:
-        for quadrant in {"inbox", "q1", "q2", "q3", "q4"}:
+        for quadrant in ("inbox", "q1", "q2", "q3", "q4"):
             ordered = self.visible_tasks_for_quadrant(quadrant)
             for index, task in enumerate(ordered):
                 if task.sort_order <= 0:

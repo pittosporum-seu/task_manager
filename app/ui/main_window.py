@@ -1,7 +1,6 @@
-from PyQt6.QtGui import QIcon, QAction
-from PyQt6.QtWidgets import QHBoxLayout, QMainWindow, QSystemTrayIcon, QWidget, QMenu, QApplication
 from PyQt6.QtCore import Qt
-
+from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QMenu, QSystemTrayIcon, QWidget
 
 from app.config import APP_LOGO_PATH
 from app.resources.strings import Strings

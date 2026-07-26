@@ -14,3 +14,14 @@ task-manager-cli = "app.cli:main"
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
+ignore = [
+    "DTZ001",  # naive datetime is intentional for local task manager
+    "DTZ005",
+    "UP007",   # Union[] syntax is fine for readability
+    "RUF012",  # class-level dict is intentional constant
+]
+
+[tool.ruff.format]
+exclude = ["README.md"]

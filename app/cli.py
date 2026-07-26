@@ -28,8 +28,8 @@ from app.application.task_app import TaskApplication
 from app.config import DATA_DIR, TAG_COLORS
 from app.domain.task_rules import normalize_tags
 from app.infrastructure.audit_log import JsonlAuditLog
-from app.infrastructure.json_task_repository import JsonTaskRepository
 from app.infrastructure.json_tag_catalog_repository import JsonTagCatalogRepository
+from app.infrastructure.json_task_repository import JsonTaskRepository
 
 
 def main(argv: list[str] | None = None) -> int:

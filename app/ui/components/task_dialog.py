@@ -1,14 +1,14 @@
 from datetime import datetime
 
-from PyQt6.QtCore import QDate, QDateTime, QPoint, QRect, QSize, QTime, Qt
+from PyQt6.QtCore import QDate, QDateTime, QPoint, QRect, QSize, Qt, QTime
 from PyQt6.QtGui import QColor, QIcon, QTextCharFormat
 from PyQt6.QtWidgets import (
     QCalendarWidget,
     QCheckBox,
     QComboBox,
     QDateTimeEdit,
-    QDialog,
     QDial,
+    QDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -27,8 +27,8 @@ from app.config import (
     APP_LOGO_PATH,
     STYLE_BTN_PRIMARY,
     STYLE_BTN_SECONDARY,
-    STYLE_CHECKBOX,
     STYLE_CALENDAR,
+    STYLE_CHECKBOX,
     STYLE_COMBOBOX,
     STYLE_DIALOG_CONTAINER,
     STYLE_FORM_LABEL,

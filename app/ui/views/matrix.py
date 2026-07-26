@@ -1,8 +1,6 @@
-from typing import Dict
-
 from PyQt6.QtCore import QPoint, QSize, Qt
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QLabel, QGridLayout, QListWidgetItem, QMenu, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QGridLayout, QLabel, QListWidgetItem, QMenu, QVBoxLayout, QWidget
 
 from app.config import QUADRANT_CONFIGS, STYLE_MENU, style_quadrant_container, style_quadrant_header
 from app.resources.strings import Strings
@@ -18,9 +16,9 @@ class MatrixView(QWidget):
     def __init__(self, service: TaskService, parent=None):
         super().__init__(parent)
         self.service = service
-        self.lists: Dict[str, DraggableListWidget] = {}
+        self.lists: dict[str, DraggableListWidget] = {}
         self.active_tag_filter = None
-        self.headers: Dict[str, QLabel] = {}
+        self.headers: dict[str, QLabel] = {}
         self.setup_ui()
 
     def setup_ui(self) -> None:
