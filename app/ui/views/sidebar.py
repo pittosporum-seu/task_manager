@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QListWidgetItem,
     QMenu,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -61,9 +62,7 @@ class SidebarView(QWidget):
         self.inbox_list.itemDoubleClicked.connect(self.handle_double_click)
         self.inbox_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.inbox_list.customContextMenuRequested.connect(self.show_context_menu)
-        layout.addWidget(self.inbox_list)
-
-        layout.addStretch()
+        layout.addWidget(self.inbox_list, 1)
 
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
@@ -89,6 +88,7 @@ class SidebarView(QWidget):
         layout.addLayout(bottom_buttons)
 
     def refresh(self) -> None:
+        scroll = self.inbox_list.verticalScrollBar().value()
         self.inbox_list.clear()
 
         current_width = self.inbox_list.viewport().width() - 20
@@ -103,6 +103,7 @@ class SidebarView(QWidget):
             height = widget.update_preferred_height(current_width)
             item.setSizeHint(QSize(current_width, height))
             self.inbox_list.setItemWidget(item, widget)
+        self.inbox_list.verticalScrollBar().setValue(scroll)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -134,12 +135,28 @@ class SidebarView(QWidget):
 
         menu = QMenu(self)
         menu.setStyleSheet(STYLE_MENU)
+        menu.addAction("编辑", lambda: self.handle_double_click(item))
         delete_action = QAction(Strings.get("menu_delete"), self)
         delete_action.triggered.connect(
-            lambda: self.service.delete_task(item.data(Qt.ItemDataRole.UserRole))
+            lambda: self.confirm_delete(item.data(Qt.ItemDataRole.UserRole))
         )
         menu.addAction(delete_action)
         menu.exec(self.inbox_list.mapToGlobal(pos))
+
+    def confirm_delete(self, task_id):
+        task = self.service.get_task(task_id)
+        if (
+            task
+            and QMessageBox.question(
+                self,
+                "删除任务",
+                f"确定删除“{task.title}”？此操作无法撤销。",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            == QMessageBox.StandardButton.Yes
+        ):
+            self.service.delete_task(task_id)
 
     def open_task_dialog(self, task=None) -> None:
         dialog = TaskDialog(self, task, self.service.get_all_tags())

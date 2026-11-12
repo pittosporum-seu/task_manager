@@ -1,6 +1,16 @@
 from PyQt6.QtCore import QPoint, QSize, Qt
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QGridLayout, QLabel, QListWidgetItem, QMenu, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QGridLayout,
+    QLabel,
+    QListWidgetItem,
+    QMenu,
+    QVBoxLayout,
+    QWidget,
+    QToolButton,
+    QMessageBox,
+    QStyle,
+)
 
 from app.config import QUADRANT_CONFIGS, STYLE_MENU, style_quadrant_container, style_quadrant_header
 from app.resources.strings import Strings
@@ -22,7 +32,18 @@ class MatrixView(QWidget):
         self.setup_ui()
 
     def setup_ui(self) -> None:
-        layout = QGridLayout(self)
+        outer = QVBoxLayout(self)
+        self.clear_filter = QToolButton()
+        self.clear_filter.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_DialogResetButton)
+        )
+        self.clear_filter.setToolTip("清除标签筛选")
+        self.clear_filter.setAccessibleName("清除标签筛选")
+        self.clear_filter.clicked.connect(self.reset_filter)
+        self.clear_filter.hide()
+        outer.addWidget(self.clear_filter, 0, Qt.AlignmentFlag.AlignRight)
+        layout = QGridLayout()
+        outer.addLayout(layout, 1)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
@@ -50,6 +71,7 @@ class MatrixView(QWidget):
             layout.addWidget(container, conf["row"], conf["col"])
 
     def refresh(self) -> None:
+        positions = {key: widget.verticalScrollBar().value() for key, widget in self.lists.items()}
         for list_widget in self.lists.values():
             list_widget.clear()
 
@@ -71,6 +93,13 @@ class MatrixView(QWidget):
             item.setSizeHint(QSize(current_width, height))
             list_widget.setItemWidget(item, widget)
         self.update_headers()
+        self.clear_filter.setVisible(bool(self.active_tag_filter))
+        for key, widget in self.lists.items():
+            widget.verticalScrollBar().setValue(positions[key])
+
+    def reset_filter(self):
+        self.active_tag_filter = None
+        self.refresh()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -103,12 +132,28 @@ class MatrixView(QWidget):
 
         menu = QMenu(self)
         menu.setStyleSheet(STYLE_MENU)
+        menu.addAction("编辑", lambda: self.handle_double_click(item))
         delete_action = QAction(Strings.get("menu_delete"), self)
         delete_action.triggered.connect(
-            lambda: self.service.delete_task(item.data(Qt.ItemDataRole.UserRole))
+            lambda: self.confirm_delete(item.data(Qt.ItemDataRole.UserRole))
         )
         menu.addAction(delete_action)
         menu.exec(list_widget.mapToGlobal(pos))
+
+    def confirm_delete(self, task_id):
+        task = self.service.get_task(task_id)
+        if (
+            task
+            and QMessageBox.question(
+                self,
+                "删除任务",
+                f"确定删除“{task.title}”？此操作无法撤销。",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            == QMessageBox.StandardButton.Yes
+        ):
+            self.service.delete_task(task_id)
 
     def open_task_dialog(self, task) -> None:
         dialog = TaskDialog(self, task, self.service.get_all_tags())

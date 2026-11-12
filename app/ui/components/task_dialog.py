@@ -37,6 +37,7 @@ from app.config import (
     TAG_COLORS,
 )
 from app.models.task import Task
+from app.application.task_app import TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH
 from app.resources.strings import Strings
 
 
@@ -329,6 +330,7 @@ class TaskDialog(QDialog):
         layout.addWidget(lbl_title)
 
         self.title_edit = QLineEdit()
+        self.title_edit.setMaxLength(TITLE_MAX_LENGTH)
         self.title_edit.setPlaceholderText(Strings.get("placeholder_title"))
         self.title_edit.setStyleSheet(STYLE_INPUT)
         layout.addWidget(self.title_edit)
@@ -402,15 +404,35 @@ class TaskDialog(QDialog):
         btn_cancel.clicked.connect(self.reject)
 
         btn_save = QPushButton(Strings.get("btn_save"))
+        self.save_button = btn_save
+        btn_save.setEnabled(False)
+        self.title_edit.textChanged.connect(self.validate_form)
+        self.desc_edit.textChanged.connect(self.validate_form)
         btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_save.setStyleSheet(STYLE_BTN_PRIMARY)
+        btn_save.setStyleSheet(
+            STYLE_BTN_PRIMARY
+            + "QPushButton:disabled { background-color: #E5E7EB; color: #9CA3AF; }"
+        )
         btn_save.clicked.connect(self.save_task)
 
         button_layout.addWidget(btn_cancel)
         button_layout.addWidget(btn_save)
         layout.addLayout(button_layout)
 
+        self.validation_label = QLabel()
+        self.validation_label.setWordWrap(True)
+        self.validation_label.setStyleSheet("color: #B91C1C;")
+        layout.addWidget(self.validation_label)
+
         self.update_date_controls()
+
+    def validate_form(self):
+        title_valid = bool(self.title_edit.text().strip())
+        description_valid = len(self.desc_edit.toPlainText().strip()) <= DESCRIPTION_MAX_LENGTH
+        self.save_button.setEnabled(title_valid and description_valid)
+        self.validation_label.setText(
+            f"描述最多 {DESCRIPTION_MAX_LENGTH} 字" if not description_valid else ""
+        )
 
     def configure_calendar_widget(self, calendar: QCalendarWidget) -> None:
         calendar.setGridVisible(False)
@@ -483,6 +505,10 @@ class TaskDialog(QDialog):
         self.due_edit.setDisplayFormat("yyyy-MM-dd HH:mm" if has_time else "yyyy-MM-dd")
 
     def save_task(self) -> None:
+        self.validate_form()
+        if not self.save_button.isEnabled():
+            self.title_edit.setFocus()
+            return
         title = self.title_edit.text().strip()
         if not title:
             return
