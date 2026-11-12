@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 
 from app.domain.task_rules import QUADRANT_DEFINITIONS
@@ -9,7 +10,9 @@ IS_FROZEN = getattr(sys, "frozen", False)
 BASE_DIR = Path(__file__).resolve().parents[1]
 APP_ROOT = Path(sys.executable).resolve().parent if IS_FROZEN else BASE_DIR
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", BASE_DIR))
-DATA_DIR = APP_ROOT / "data"
+DATA_DIR = (
+    Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local" / "share")) / "MyTask" / "data"
+)
 LANGUAGE = "cn"
 Strings.current_lang = LANGUAGE
 

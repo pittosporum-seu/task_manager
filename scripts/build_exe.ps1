@@ -20,6 +20,12 @@ $version = (& $python -c "import tomllib; print(tomllib.load(open('pyproject.tom
     --icon app/resources/imgs/app_logo.ico `
     --add-data "app/resources/imgs;app/resources/imgs" `
     main.py
+if ($LASTEXITCODE -ne 0) { throw "GUI build failed" }
+
+& $python -m PyInstaller --noconfirm --clean --console --name mytask cli_main.py
+if ($LASTEXITCODE -ne 0) { throw "CLI build failed" }
+Copy-Item -Path "dist/mytask" -Destination "dist/TaskManager/cli" -Recurse -Force
+Copy-Item -Path "scripts/install.ps1" -Destination "dist/TaskManager/install.ps1" -Force
 
 $artifactDir = Join-Path $projectRoot "outputs"
 New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null

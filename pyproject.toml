@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [project.scripts]
-task-manager-cli = "app.cli:main"
+mytask = "app.cli:main"
 
 [tool.ruff]
 line-length = 100

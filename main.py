@@ -1,6 +1,7 @@
 import sys
 
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 from app.config import GLOBAL_STYLES
 from app.ui.main_window import MainWindow
@@ -14,7 +15,25 @@ def main() -> int:
     app.setStyle("Fusion")
     app.setStyleSheet(GLOBAL_STYLES)
 
+    server = QLocalServer(app)
+    if not smoke_test:
+        socket = QLocalSocket()
+        socket.connectToServer("MyTask-desktop")
+        if socket.waitForConnected(1000):
+            socket.disconnectFromServer()
+            return 0
+        if not server.listen("MyTask-desktop"):
+            return 1
+
     window = MainWindow()
+
+    def activate_existing():
+        connection = server.nextPendingConnection()
+        if connection:
+            connection.deleteLater()
+        window.restore_window()
+
+    server.newConnection.connect(activate_existing)
     if smoke_test:
         window.refresh_all_views()
         window.show()

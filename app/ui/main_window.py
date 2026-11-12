@@ -1,5 +1,5 @@
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QHBoxLayout, QMainWindow, QSystemTrayIcon, QWidget
+from PyQt6.QtWidgets import QApplication, QMenu, QHBoxLayout, QMainWindow, QSystemTrayIcon, QWidget
 
 from app.config import APP_LOGO_PATH
 from app.resources.strings import Strings
@@ -29,7 +29,24 @@ class MainWindow(QMainWindow):
             return
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon(APP_LOGO_PATH))
+        menu = QMenu(self)
+        menu.addAction("Show MyTask", self.restore_window)
+        menu.addAction("Quit MyTask", QApplication.instance().quit)
+        self.tray_icon.setContextMenu(menu)
+        self.tray_icon.activated.connect(self.activate_tray)
         self.tray_icon.show()
+
+    def restore_window(self):
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def activate_tray(self, reason):
+        if reason in (
+            QSystemTrayIcon.ActivationReason.Trigger,
+            QSystemTrayIcon.ActivationReason.DoubleClick,
+        ):
+            self.restore_window()
 
     def setup_ui(self) -> None:
         main_widget = QWidget()
@@ -61,5 +78,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self.tray_icon is not None:
-            self.tray_icon.hide()
+            self.hide()
+            event.ignore()
+            return
         super().closeEvent(event)
