@@ -103,10 +103,15 @@ def test_matrix_filter_header_truncates_long_tag(tmp_path, qapp):
 def test_new_task_dialog_due_date_defaults(qapp):
     dialog = TaskDialog()
 
-    assert dialog.has_date_check.isChecked()
+    assert not dialog.has_date_check.isChecked()
     assert not dialog.has_time_check.isChecked()
-    assert dialog.due_edit.isEnabled()
+    assert not dialog.due_edit.isEnabled()
+    assert not dialog.reminder_combo.isEnabled()
     assert dialog.due_edit.displayFormat() == "yyyy-MM-dd"
+    dialog.title_edit.setText("No deadline")
+    dialog.save_task()
+    assert dialog.result_data["due_date"] is None
+    assert dialog.result_data["reminder_minutes"] is None
 
     dialog.close()
 

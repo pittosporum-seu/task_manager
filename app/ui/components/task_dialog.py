@@ -358,7 +358,7 @@ class TaskDialog(QDialog):
 
         self.has_date_check = QCheckBox(Strings.get("label_has_date"))
         self.has_date_check.setStyleSheet(STYLE_CHECKBOX)
-        self.has_date_check.setChecked(True)
+        self.has_date_check.setChecked(False)
         self.has_date_check.stateChanged.connect(self.update_date_controls)
         date_option_layout.addWidget(self.has_date_check)
 
