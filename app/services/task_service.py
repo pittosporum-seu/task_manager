@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
@@ -9,8 +8,12 @@ from app.application.commands import (
     AddTask,
     CheckReminders,
     CompleteTask,
+    DeleteTag,
     DeleteTask,
+    MergeTag,
     MoveTask,
+    PruneStaleTags,
+    RenameTag,
     ReopenTask,
     UpdateTask,
 )
@@ -19,8 +22,7 @@ from app.application.event_bus import EventBus
 from app.application.events import ReminderTriggered, TaskChanged
 from app.application.task_app import TaskApplication
 from app.config import DATA_DIR
-from app.infrastructure.audit_log import JsonlAuditLog
-from app.infrastructure.json_task_repository import JsonTaskRepository
+from app.infrastructure.sqlite_repository import SqliteRepository
 from app.models.task import Task
 
 
@@ -28,22 +30,37 @@ class TaskService(QObject):
     data_changed = pyqtSignal()
     reminder_triggered = pyqtSignal(str, str)
 
-    def __init__(self, filename: Optional[str] = None, enable_timer: bool = True):
+    def __init__(self, filename: str | None = None, enable_timer: bool = True):
         super().__init__()
-        self.filepath = Path(filename) if filename else DATA_DIR / "tasks.json"
-        self.repository = JsonTaskRepository(self.filepath)
-        self.audit_log = JsonlAuditLog(self.filepath.parent / "audit.log.jsonl")
+        self.filepath = Path(filename) if filename else DATA_DIR / "tasks.db"
+        self.repository = SqliteRepository(self.filepath)
+        self.audit_log = self.repository
+        self.tag_catalog_repo = self.repository
         self.context = CommandContext(source="ui")
         self.event_bus = EventBus()
         self.event_bus.subscribe(TaskChanged, self._handle_task_changed)
         self.event_bus.subscribe(ReminderTriggered, self._handle_reminder_triggered)
-        self.application = TaskApplication(self.repository, self.event_bus, self.audit_log)
+        self.application = TaskApplication(
+            self.repository,
+            self.event_bus,
+            self.audit_log,
+            tag_catalog_repository=self.tag_catalog_repo,
+        )
 
         self.timer = None
         if enable_timer:
             self.timer = QTimer(self)
             self.timer.timeout.connect(self.check_reminders)
             self.timer.start(30_000)
+            self.sync_timer = QTimer(self)
+            self.sync_timer.timeout.connect(self.sync_data)
+            self.sync_timer.start(1000)
+
+    def sync_data(self):
+        latest = self.repository.load_all()
+        if latest != self.application.tasks:
+            self.application.reload()
+            self.data_changed.emit()
 
     @property
     def tasks(self) -> dict[str, Task]:
@@ -60,10 +77,11 @@ class TaskService(QObject):
         self,
         title: str,
         description: str = "",
-        due_date: Optional[str] = None,
+        due_date: str | None = None,
         has_time: bool = False,
-        reminder_minutes: Optional[int] = None,
+        reminder_minutes: int | None = None,
         quadrant: str = "inbox",
+        tags: list[dict[str, str]] | None = None,
     ) -> Task:
         result = self._dispatch(
             AddTask(
@@ -73,6 +91,7 @@ class TaskService(QObject):
                 has_time=has_time,
                 reminder_minutes=reminder_minutes,
                 quadrant=quadrant,
+                tags=tags,
             )
         )
         task = self.get_task(result.task_id or "")
@@ -85,9 +104,10 @@ class TaskService(QObject):
         task_id: str,
         title: str,
         description: str,
-        due_date: Optional[str],
+        due_date: str | None,
         has_time: bool,
-        reminder_minutes: Optional[int],
+        reminder_minutes: int | None,
+        tags: list[dict[str, str]] | None = None,
     ) -> None:
         self._dispatch(
             UpdateTask(
@@ -97,20 +117,23 @@ class TaskService(QObject):
                 due_date=due_date,
                 has_time=has_time,
                 reminder_minutes=reminder_minutes,
+                tags=tags,
             )
         )
 
     def delete_task(self, task_id: str) -> None:
         self._dispatch(DeleteTask(task_id=task_id))
 
-    def move_task(self, task_id: str, new_quadrant: str) -> None:
-        self._dispatch(MoveTask(task_id=task_id, new_quadrant=new_quadrant))
+    def move_task(self, task_id: str, new_quadrant: str, insert_index: int | None = None) -> None:
+        self._dispatch(
+            MoveTask(task_id=task_id, new_quadrant=new_quadrant, insert_index=insert_index)
+        )
 
     def toggle_complete(
         self,
         task_id: str,
         completed: bool,
-        completed_at: Optional[str] = None,
+        completed_at: str | None = None,
     ) -> None:
         if completed:
             self._dispatch(CompleteTask(task_id=task_id, completed_at=completed_at))
@@ -129,8 +152,40 @@ class TaskService(QObject):
     def get_archived_tasks(self) -> list[Task]:
         return self.application.get_archived_tasks()
 
+    def visible_tasks_for_quadrant(self, quadrant: str) -> list[Task]:
+        return self.application.visible_tasks_for_quadrant(quadrant)
+
+    # ── Tag operations (thin dispatch wrappers) ───────────────────
+
+    def get_all_tags(self) -> list[dict[str, str]]:
+        return self.application.get_all_tags()
+
+    def get_tag_reference_counts(self) -> dict[str, int]:
+        return self.application.get_tag_reference_counts()
+
+    def rename_tag(self, old_name: str, new_name: str, color: str) -> None:
+        self._dispatch(RenameTag(old_name=old_name, new_name=new_name, color=color))
+
+    def delete_tag(self, name: str) -> None:
+        self._dispatch(DeleteTag(name=name))
+
+    def merge_tag(self, source_name: str, target_tag: dict[str, str]) -> None:
+        self._dispatch(
+            MergeTag(
+                source_name=source_name,
+                target_name=target_tag["name"],
+                target_color=target_tag.get("color", "#6B7280"),
+            )
+        )
+
+    def prune_stale_tags(self) -> int:
+        result = self._dispatch(PruneStaleTags())
+        return result.data.get("stale_count", 0)
+
     def check_reminders(self) -> None:
         self._dispatch(CheckReminders())
+
+    # ── Internal helpers ──────────────────────────────────────────
 
     def _dispatch(self, command):
         return self.application.dispatch(command, context=self.context)

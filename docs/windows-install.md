@@ -17,5 +17,5 @@ Repeated GUI launches activate the existing window. Minimize keeps the window
 in the taskbar. Close hides it in the notification area; click the tray icon to
 restore it, or use its Quit menu to exit. Without a system tray, Close exits.
 
-Current limitation: CLI writes and a running GUI are not synchronized. Quit the
-GUI before modifying tasks through the CLI to avoid stale data overwriting changes.
+GUI and CLI now share SQLite transactions. The GUI polls for external changes.
+See sqlite.md for migration and concurrency details.

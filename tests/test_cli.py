@@ -1,4 +1,5 @@
 import json
+import sqlite3
 
 from app.cli import main
 
@@ -66,10 +67,10 @@ def test_cli_add_update_list_and_archive_flow(tmp_path, capsys):
     exit_code, payload = run_cli(capsys, data_file, "list", "--view", "archive")
     assert exit_code == 0
     assert [task["id"] for task in payload["data"]["tasks"]] == [task_id]
-    audit_file = data_file.parent / "audit.log.jsonl"
-    audit_records = [
-        json.loads(line) for line in audit_file.read_text(encoding="utf-8").splitlines()
-    ]
+    with sqlite3.connect(data_file.with_suffix(".db")) as connection:
+        audit_records = [
+            json.loads(row[0]) for row in connection.execute("SELECT payload FROM audit")
+        ]
     assert [record["command"] for record in audit_records] == [
         "AddTask",
         "UpdateTask",
@@ -181,3 +182,179 @@ def test_cli_future_ai_delete_must_be_dry_run(tmp_path, capsys):
 
     assert exit_code == 0
     assert payload["would_change"]
+
+
+def test_cli_adds_lists_and_filters_tags(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    _, first_payload = run_cli(
+        capsys,
+        data_file,
+        "add",
+        "Tagged task",
+        "--tag",
+        "Work",
+        "--tag",
+        "Deep",
+    )
+    first_id = first_payload["task_id"]
+    _, second_payload = run_cli(capsys, data_file, "add", "Other task", "--tag", "Home")
+    second_id = second_payload["task_id"]
+
+    exit_code, payload = run_cli(capsys, data_file, "tags")
+
+    assert exit_code == 0
+    assert [(tag["name"], tag["count"]) for tag in payload["data"]["tags"]] == [
+        ("Deep", 1),
+        ("Home", 1),
+        ("Work", 1),
+    ]
+
+    exit_code, payload = run_cli(capsys, data_file, "list", "--tag", "Work")
+
+    assert exit_code == 0
+    assert [task["id"] for task in payload["data"]["tasks"]] == [first_id]
+    assert payload["data"]["tag"] == "Work"
+
+    exit_code, payload = run_cli(capsys, data_file, "list", "--tag", "Home")
+
+    assert exit_code == 0
+    assert [task["id"] for task in payload["data"]["tasks"]] == [second_id]
+
+
+def test_cli_reuses_existing_tag_color(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    _, first_payload = run_cli(capsys, data_file, "add", "First", "--tag", "Work")
+    first_id = first_payload["task_id"]
+    _, second_payload = run_cli(capsys, data_file, "add", "Second", "--tag", "Work")
+    second_id = second_payload["task_id"]
+
+    _, first = run_cli(capsys, data_file, "get", first_id)
+    _, second = run_cli(capsys, data_file, "get", second_id)
+
+    assert first["data"]["task"]["tags"][0]["color"] == second["data"]["task"]["tags"][0]["color"]
+
+
+# ── Tag management CLI tests ──────────────────────────────────────
+
+
+def test_cli_tag_rename_requires_confirm_or_dry_run(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    run_cli(capsys, data_file, "add", "Task", "--tag", "Work")
+
+    exit_code, payload = run_cli(capsys, data_file, "tag-rename", "Work", "Deep Work")
+
+    assert exit_code == 1
+    assert payload["message"] == "tag-rename requires --confirm or --dry-run"
+
+
+def test_cli_tag_rename_renames_across_tasks(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    run_cli(capsys, data_file, "add", "First", "--tag", "Work")
+    run_cli(capsys, data_file, "add", "Second", "--tag", "Work")
+
+    exit_code, payload = run_cli(capsys, data_file, "tag-rename", "Work", "Deep Work", "--confirm")
+
+    assert exit_code == 0
+    assert payload["changed"]
+    assert payload["data"]["affected_task_count"] == 2
+
+    # Verify tasks updated
+    _, list_payload = run_cli(capsys, data_file, "list", "--tag", "Deep Work")
+    assert len(list_payload["data"]["tasks"]) == 2
+
+
+def test_cli_tag_delete_requires_confirm_or_dry_run(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    run_cli(capsys, data_file, "add", "Task", "--tag", "Work")
+
+    exit_code, payload = run_cli(capsys, data_file, "tag-delete", "Work")
+
+    assert exit_code == 1
+    assert payload["message"] == "tag-delete requires --confirm or --dry-run"
+
+
+def test_cli_tag_delete_removes_from_all_tasks(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    run_cli(capsys, data_file, "add", "First", "--tag", "Work")
+    run_cli(capsys, data_file, "add", "Second", "--tag", "Work")
+
+    exit_code, payload = run_cli(capsys, data_file, "tag-delete", "Work", "--confirm")
+
+    assert exit_code == 0
+    assert payload["changed"]
+
+    # Verify tag removed
+    _, tags_payload = run_cli(capsys, data_file, "tags")
+    tag_names = [t["name"] for t in tags_payload["data"]["tags"]]
+    assert "Work" not in tag_names
+
+
+def test_cli_tag_delete_dry_run_previews(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    run_cli(capsys, data_file, "add", "Task", "--tag", "Work")
+
+    exit_code, payload = run_cli(capsys, data_file, "tag-delete", "Work", "--dry-run")
+
+    assert exit_code == 0
+    assert not payload["changed"]
+    assert payload["would_change"]
+    assert payload["preview"]["operation"] == "delete_tag"
+
+    # Verify tag still exists
+    _, tags_payload = run_cli(capsys, data_file, "tags")
+    assert any(t["name"] == "Work" for t in tags_payload["data"]["tags"])
+
+
+def test_cli_tag_merge_requires_confirm_or_dry_run(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    run_cli(capsys, data_file, "add", "Task", "--tag", "Work")
+
+    exit_code, payload = run_cli(capsys, data_file, "tag-merge", "Work", "Home")
+
+    assert exit_code == 1
+    assert payload["message"] == "tag-merge requires --confirm or --dry-run"
+
+
+def test_cli_tag_merge_replaces_source_with_target(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    run_cli(capsys, data_file, "add", "First", "--tag", "Work")
+    run_cli(capsys, data_file, "add", "Second", "--tag", "Work", "--tag", "Home")
+
+    exit_code, payload = run_cli(capsys, data_file, "tag-merge", "Work", "Home", "--confirm")
+
+    assert exit_code == 0
+    assert payload["changed"]
+
+    # Verify all tasks have Home tag, no Work
+    _, list_payload = run_cli(capsys, data_file, "list", "--tag", "Home")
+    assert len(list_payload["data"]["tasks"]) == 2
+
+
+def test_cli_tag_prune_requires_confirm_or_dry_run(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    run_cli(capsys, data_file, "add", "Task", "--tag", "Work")
+
+    exit_code, payload = run_cli(capsys, data_file, "tag-prune")
+
+    assert exit_code == 1
+    assert payload["message"] == "tag-prune requires --confirm or --dry-run"
+
+
+def test_cli_tag_prune_removes_stale_tags(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    run_cli(capsys, data_file, "add", "Active", "--tag", "ActiveTag")
+
+    exit_code, payload = run_cli(capsys, data_file, "tag-prune", "--confirm")
+
+    assert exit_code == 0
+    assert payload["data"]["stale_count"] == 0  # Active tag is not stale
+
+
+def test_cli_tag_prune_dry_run_previews(tmp_path, capsys):
+    data_file = tmp_path / "tasks.json"
+    run_cli(capsys, data_file, "add", "Task", "--tag", "Work")
+
+    exit_code, payload = run_cli(capsys, data_file, "tag-prune", "--dry-run")
+
+    assert exit_code == 0
+    assert not payload["changed"]

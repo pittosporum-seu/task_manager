@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Callable
+from collections.abc import Callable
 
 from app.application.events import ApplicationEvent
-
 
 EventHandler = Callable[[ApplicationEvent], None]
 

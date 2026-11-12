@@ -2,17 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Union
 
 
 @dataclass(frozen=True)
 class AddTask:
     title: str
     description: str = ""
-    due_date: Optional[str] = None
+    due_date: str | None = None
     has_time: bool = False
-    reminder_minutes: Optional[int] = None
+    reminder_minutes: int | None = None
     quadrant: str = "inbox"
+    tags: list[dict[str, str]] | None = None
 
 
 @dataclass(frozen=True)
@@ -20,9 +21,10 @@ class UpdateTask:
     task_id: str
     title: str
     description: str
-    due_date: Optional[str]
+    due_date: str | None
     has_time: bool
-    reminder_minutes: Optional[int]
+    reminder_minutes: int | None
+    tags: list[dict[str, str]] | None = None
 
 
 @dataclass(frozen=True)
@@ -34,12 +36,13 @@ class DeleteTask:
 class MoveTask:
     task_id: str
     new_quadrant: str
+    insert_index: int | None = None
 
 
 @dataclass(frozen=True)
 class CompleteTask:
     task_id: str
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -49,9 +52,46 @@ class ReopenTask:
 
 @dataclass(frozen=True)
 class CheckReminders:
-    now: Optional[datetime] = None
+    now: datetime | None = None
 
 
-TaskCommand = (
-    AddTask | UpdateTask | DeleteTask | MoveTask | CompleteTask | ReopenTask | CheckReminders
-)
+# ── Tag commands ──────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class RenameTag:
+    old_name: str
+    new_name: str
+    color: str = "#6B7280"
+
+
+@dataclass(frozen=True)
+class DeleteTag:
+    name: str
+
+
+@dataclass(frozen=True)
+class MergeTag:
+    source_name: str
+    target_name: str
+    target_color: str = "#6B7280"
+
+
+@dataclass(frozen=True)
+class PruneStaleTags:
+    cutoff_days: int = 90
+
+
+TaskCommand = Union[
+    AddTask,
+    UpdateTask,
+    DeleteTask,
+    MoveTask,
+    CompleteTask,
+    ReopenTask,
+    CheckReminders,
+    RenameTag,
+    DeleteTag,
+    MergeTag,
+    PruneStaleTags,
+]

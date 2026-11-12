@@ -5,7 +5,6 @@ from typing import Literal
 
 from app.models.task import Task
 
-
 TaskView = Literal["all", "inbox", "matrix", "archive"]
 
 

@@ -14,6 +14,7 @@ def main() -> int:
     app = QApplication(argv)
     app.setStyle("Fusion")
     app.setStyleSheet(GLOBAL_STYLES)
+    app.setQuitOnLastWindowClosed(False)
 
     server = QLocalServer(app)
     if not smoke_test:

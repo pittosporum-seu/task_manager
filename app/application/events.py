@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Union
 
 
 @dataclass(frozen=True)
 class TaskChanged:
     action: str
-    task_id: Optional[str] = None
+    task_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -16,4 +16,4 @@ class ReminderTriggered:
     title: str
 
 
-ApplicationEvent = TaskChanged | ReminderTriggered
+ApplicationEvent = Union[TaskChanged, ReminderTriggered]
